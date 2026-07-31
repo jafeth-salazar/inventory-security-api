@@ -37,7 +37,14 @@ npm run format       # prettier --write
 npm run build        # nest build
 npm test              # unit tests
 npm run test:e2e      # e2e (requiere el contenedor `db` arriba)
+
+npm run migration:generate -- src/infrastructure/persistence/typeorm/migrations/NombreDescriptivo
+npm run migration:run       # aplica migraciones pendientes contra `db`
+npm run seed                 # datos de ejemplo, solo para desarrollo
 ```
+
+Ver `CLAUDE.md` para el detalle de credenciales/modelo de sesión que usan
+las migraciones.
 
 ## Más contexto
 

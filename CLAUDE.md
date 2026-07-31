@@ -245,6 +245,33 @@ la próxima vez que se levante el stack. Los scripts en `sql/` deben ser
 idempotentes (`IF NOT EXISTS ...`) porque `db-init` corre en cada `up`, no
 solo la primera vez.
 
+### Migraciones (TypeORM) y seeds
+
+```bash
+npm run migration:generate -- src/infrastructure/persistence/typeorm/migrations/NombreDescriptivo
+npm run migration:run
+npm run migration:revert
+npm run seed
+```
+
+- `src/infrastructure/persistence/typeorm/data-source.ts` es el `DataSource`
+  exclusivo del CLI (migraciones/seeds) — la app en runtime nunca lo usa,
+  sigue el modelo de sesión SQL dinámica de más arriba.
+- Se conecta con `DB_MIGRATION_USER`/`DB_MIGRATION_PASSWORD` (`inv_dba`,
+  `db_owner`) porque crear/alterar tablas es DDL, y `inventory_app` (perfil
+  auditor) no tiene esos permisos.
+- Estos comandos corren contra `DB_HOST` tal como esté en `.env`. Si corrés
+  el CLI desde el host (fuera de Docker) en vez de dentro del contenedor
+  `api`, sobreescribí la variable: `DB_HOST=localhost npm run migration:run`
+  (el puerto 1433 ya está publicado por `docker-compose.yml`).
+- `seed.ts` inserta datos de ejemplo (categorías, bodegas, un proveedor,
+  productos, una orden de compra, entradas/salidas e inventario actual) —
+  solo para desarrollo/demo, no correr contra datos reales.
+- Estas tablas todavía no se crean automáticamente al hacer `docker compose
+  up` (a diferencia de `sql/`, que sí corre solo vía `db-init`) — por ahora
+  es un paso manual. Evaluar si vale la pena automatizarlo con un servicio
+  tipo `migrate` en el compose cuando el modelo esté más estable.
+
 ## Variables de entorno
 
 Ver `.env.example`. `DB_USER`/`DB_PASSWORD` en `.env` son solo para el
