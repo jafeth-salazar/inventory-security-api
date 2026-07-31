@@ -160,9 +160,35 @@ Ver `sql/01_logins_and_roles.sql` para el script completo.
   no `InventoryService` con 15 métodos).
 - **DTOs de infraestructura ≠ entidades de dominio**: los controllers mapean
   explícitamente; el dominio no conoce `class-validator` ni Swagger.
-- **Tests**: unit tests para casos de uso con ports fake/in-memory (sin
-  levantar SQL Server); e2e solo para los flujos que dependen de permisos
-  reales de SQL Server (esos si necesitan el contenedor `db` arriba).
+
+## Testing
+
+Dos tipos de test, con propósitos distintos — no se mezclan:
+
+- **Unit (`*.spec.ts`, junto al archivo que prueban)**: casos de uso de
+  `application/` contra ports fake/in-memory (sin SQL Server, sin Docker).
+  Rápidos, corren en cada push vía CI. Esto es lo que valida la lógica de
+  negocio (p.ej. que una salida de inventario no deje stock negativo).
+- **E2E (`test/*.e2e-spec.ts`)**: contra el contenedor `db` real. Aquí es
+  donde se prueba lo que de verdad importa para este proyecto — que el
+  control de acceso de SQL Server se cumple:
+  - `inv_operador*` recibe error al intentar `SELECT`.
+  - `inv_auditor*` no puede hacer `INSERT`/`UPDATE`/`DELETE`.
+  - Los campos enmascarados se ven distintos según el rol conectado
+    (operador ve máscara, supervisor/auditor ven el valor real).
+  - Un login inválido no abre sesión (`SqlSessionPort.authenticate` falla).
+
+  Requieren `docker compose up db` antes de correr `npm run test:e2e`. Por
+  eso **no** están en el pipeline de CI todavía (la imagen de SQL Server 2022
+  es pesada) — se corren localmente antes de cada PR importante. Se puede
+  sumar a CI más adelante como job aparte si el tiempo lo permite.
+
+## CI
+
+`.github/workflows/ci.yml` corre en cada push/PR a `main` o `develop`:
+`eslint --max-warnings=0` (sin `--fix`, solo verifica) → `nest build` →
+`npm test` (unit). Es la red de seguridad además de Husky — cubre el caso de
+alguien commiteando con `--no-verify` o sin los hooks instalados.
 
 ## Git
 
