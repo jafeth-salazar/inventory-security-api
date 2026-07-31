@@ -2,12 +2,14 @@
    Inventory Security API — Logins, usuarios y roles
    Proyecto Final - Seguridad de Base de Datos (tema: Inventario)
 
-   Cubre el mínimo de control de acceso pedido en el enunciado:
-     Operadores del sistema (4)         -> solo escritura
-     Supervisores (3)                   -> escritura y lectura
-     Auditores (2)                      -> solo lectura
-     Administrador de la base de datos  -> administrador
-     Operador de backup                 -> backup operator
+   Un login representativo por rol de control de acceso pedido en
+   el enunciado (se pueden clonar más adelante si el profesor pide
+   ver los 4 operadores / 3 supervisores / 2 auditores reales):
+     Operador del sistema                -> solo escritura
+     Supervisor                          -> escritura y lectura
+     Auditor                             -> solo lectura
+     Administrador de la base de datos   -> administrador
+     Operador de backup                  -> backup operator
    Más inventory_app: login técnico del backend NestJS, que según
    la Parte 3.4 del enunciado debe conectarse con perfil auditor.
 
@@ -29,25 +31,10 @@ GO
 USE master;
 GO
 
--- Operadores del sistema (solo escritura)
-CREATE LOGIN inv_operador1 WITH PASSWORD = 'ChangeMe_Operador1_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_operador2 WITH PASSWORD = 'ChangeMe_Operador2_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_operador3 WITH PASSWORD = 'ChangeMe_Operador3_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_operador4 WITH PASSWORD = 'ChangeMe_Operador4_2026!', CHECK_POLICY = ON;
-
--- Supervisores (lectura y escritura)
-CREATE LOGIN inv_supervisor1 WITH PASSWORD = 'ChangeMe_Supervisor1_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_supervisor2 WITH PASSWORD = 'ChangeMe_Supervisor2_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_supervisor3 WITH PASSWORD = 'ChangeMe_Supervisor3_2026!', CHECK_POLICY = ON;
-
--- Auditores (solo lectura)
-CREATE LOGIN inv_auditor1 WITH PASSWORD = 'ChangeMe_Auditor1_2026!', CHECK_POLICY = ON;
-CREATE LOGIN inv_auditor2 WITH PASSWORD = 'ChangeMe_Auditor2_2026!', CHECK_POLICY = ON;
-
--- Administrador de la base de datos
+CREATE LOGIN inv_operador WITH PASSWORD = 'ChangeMe_Operador_2026!', CHECK_POLICY = ON;
+CREATE LOGIN inv_supervisor WITH PASSWORD = 'ChangeMe_Supervisor_2026!', CHECK_POLICY = ON;
+CREATE LOGIN inv_auditor WITH PASSWORD = 'ChangeMe_Auditor_2026!', CHECK_POLICY = ON;
 CREATE LOGIN inv_dba WITH PASSWORD = 'ChangeMe_DBA_2026!', CHECK_POLICY = ON;
-
--- Operador de backup
 CREATE LOGIN inv_backup_operator WITH PASSWORD = 'ChangeMe_Backup_2026!', CHECK_POLICY = ON;
 
 -- Cuenta técnica del backend NestJS (perfil auditor, ver Parte 3.4 del enunciado)
@@ -60,18 +47,9 @@ GO
 USE InventorySecurityDB;
 GO
 
-CREATE USER inv_operador1 FOR LOGIN inv_operador1;
-CREATE USER inv_operador2 FOR LOGIN inv_operador2;
-CREATE USER inv_operador3 FOR LOGIN inv_operador3;
-CREATE USER inv_operador4 FOR LOGIN inv_operador4;
-
-CREATE USER inv_supervisor1 FOR LOGIN inv_supervisor1;
-CREATE USER inv_supervisor2 FOR LOGIN inv_supervisor2;
-CREATE USER inv_supervisor3 FOR LOGIN inv_supervisor3;
-
-CREATE USER inv_auditor1 FOR LOGIN inv_auditor1;
-CREATE USER inv_auditor2 FOR LOGIN inv_auditor2;
-
+CREATE USER inv_operador FOR LOGIN inv_operador;
+CREATE USER inv_supervisor FOR LOGIN inv_supervisor;
+CREATE USER inv_auditor FOR LOGIN inv_auditor;
 CREATE USER inv_dba FOR LOGIN inv_dba;
 CREATE USER inv_backup_operator FOR LOGIN inv_backup_operator;
 CREATE USER inventory_app FOR LOGIN inventory_app;
@@ -93,18 +71,18 @@ CREATE ROLE db_supervisor_rol;
 CREATE ROLE db_auditor_rol;
 GO
 
--- Operadores: solo escritura sobre las tablas transaccionales.
+-- Operador: solo escritura sobre las tablas transaccionales.
 -- Se otorga a nivel de schema dbo para cubrir las tablas del modelo
 -- físico aún no creadas (Parte 1). DENY explícito de lectura/borrado
 -- para dejar la política documentada, no solo por ausencia de GRANT.
 GRANT INSERT, UPDATE ON SCHEMA::dbo TO db_operador_rol;
 DENY SELECT, DELETE ON SCHEMA::dbo TO db_operador_rol;
 
--- Supervisores: lectura y escritura completas + ver datos sin máscara.
+-- Supervisor: lectura y escritura completas + ver datos sin máscara.
 GRANT SELECT, INSERT, UPDATE, DELETE ON SCHEMA::dbo TO db_supervisor_rol;
 GRANT UNMASK TO db_supervisor_rol;
 
--- Auditores: solo lectura (dbo + schema de auditoría) + ver datos sin máscara.
+-- Auditor: solo lectura (dbo + schema de auditoría) + ver datos sin máscara.
 GRANT SELECT ON SCHEMA::dbo TO db_auditor_rol;
 GRANT SELECT ON SCHEMA::audit TO db_auditor_rol;
 GRANT UNMASK TO db_auditor_rol;
@@ -117,17 +95,9 @@ GO
 -- ----------------------------------------------------------
 -- 5. MEMBRESÍAS
 -- ----------------------------------------------------------
-ALTER ROLE db_operador_rol ADD MEMBER inv_operador1;
-ALTER ROLE db_operador_rol ADD MEMBER inv_operador2;
-ALTER ROLE db_operador_rol ADD MEMBER inv_operador3;
-ALTER ROLE db_operador_rol ADD MEMBER inv_operador4;
-
-ALTER ROLE db_supervisor_rol ADD MEMBER inv_supervisor1;
-ALTER ROLE db_supervisor_rol ADD MEMBER inv_supervisor2;
-ALTER ROLE db_supervisor_rol ADD MEMBER inv_supervisor3;
-
-ALTER ROLE db_auditor_rol ADD MEMBER inv_auditor1;
-ALTER ROLE db_auditor_rol ADD MEMBER inv_auditor2;
+ALTER ROLE db_operador_rol ADD MEMBER inv_operador;
+ALTER ROLE db_supervisor_rol ADD MEMBER inv_supervisor;
+ALTER ROLE db_auditor_rol ADD MEMBER inv_auditor;
 
 -- inventory_app: la API solo debe leer las tablas de auditoría (perfil auditor).
 ALTER ROLE db_auditor_rol ADD MEMBER inventory_app;
