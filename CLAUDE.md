@@ -185,11 +185,13 @@ Dos tipos de test, con propósitos distintos — no se mezclan:
 
 ## CI
 
-`.github/workflows/ci.yml` corre en cada PR hacia `main` y en cada push a
-`main` (post-merge). No corre en push directo a `develop` — si estuviera en
-ambos triggers a la vez, un push a `develop` con un PR abierto hacia `main`
-dispara el workflow dos veces (una por el push, otra por el "synchronize"
-del PR), duplicando los checks en la UI.
+`.github/workflows/ci.yml` corre en cada PR hacia `develop` o `main`
+(`feature/* → develop` y `develop → main`), y en cada push a `main`
+(confirmación post-merge). A propósito **no** corre en push directo a
+`develop`: si `push` también disparara ahí, un commit directo a `develop`
+mientras hay un PR abierto hacia `main` dispararía el workflow dos veces
+(una por el push, otra por el "synchronize" del PR), duplicando los checks
+en la UI — ya nos pasó una vez.
 
 - `prettier --check` → `eslint --max-warnings=0` (sin `--fix`, solo verifica)
   → `nest build` → `npm test` (unit) → `npm audit --omit=dev --audit-level=high`.
@@ -205,8 +207,10 @@ del PR), duplicando los checks en la UI.
 
 ## Git
 
-- `main` — estable, solo vía PR.
-- `develop` — rama de trabajo por defecto.
+- `main` — estable, solo vía PR desde `develop`.
+- `develop` — rama de integración, solo vía PR desde ramas de feature.
+- Flujo: `feature/lo-que-sea` → PR → `develop` → PR → `main`. Nada de
+  commits directos a `develop` o `main`.
 - Convención de commits: `tipo(scope): descripción` (ver historial para ejemplos).
 
 ## Comandos
