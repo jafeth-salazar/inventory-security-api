@@ -186,9 +186,18 @@ Dos tipos de test, con propósitos distintos — no se mezclan:
 ## CI
 
 `.github/workflows/ci.yml` corre en cada push/PR a `main` o `develop`:
-`eslint --max-warnings=0` (sin `--fix`, solo verifica) → `nest build` →
-`npm test` (unit). Es la red de seguridad además de Husky — cubre el caso de
-alguien commiteando con `--no-verify` o sin los hooks instalados.
+
+- `prettier --check` → `eslint --max-warnings=0` (sin `--fix`, solo verifica)
+  → `nest build` → `npm test` (unit) → `npm audit --omit=dev --audit-level=high`.
+  Es la red de seguridad además de Husky — cubre el caso de alguien
+  commiteando con `--no-verify` o sin los hooks instalados. El audit se
+  limita a dependencias de producción a propósito: las devDependencies de
+  ESLint/Jest arrastran vulnerabilidades transitivas conocidas (ReDoS en
+  `brace-expansion`/`minimatch`) que no afectan el build ni el runtime.
+- Un segundo job (`pr-template`, solo en eventos `pull_request`) valida que
+  la descripción del PR realmente llenó `Changes Made` / `Testing
+  Information` / `Notes` del template — falla si alguna sección quedó vacía
+  o con el placeholder `-` sin editar.
 
 ## Git
 
