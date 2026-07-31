@@ -204,6 +204,12 @@ la UI de GitHub en vez de agruparse en uno solo:
   dependencias de producción a propósito: las devDependencies de
   ESLint/Jest arrastran vulnerabilidades transitivas conocidas (ReDoS en
   `brace-expansion`/`minimatch`) que no afectan el build ni el runtime.
+  Dependabot (`.github/dependabot.yml`) complementa esto abriendo PRs
+  semanales de actualización de dependencias contra `develop` — ojo: los
+  PRs de *security update* (activados por un advisory real, no por el
+  schedule) los abre GitHub siempre contra la rama por defecto (`main`),
+  sin importar `target-branch`; es una limitación de Dependabot, no algo
+  que podamos configurar.
 - **`pr-template`** (solo en eventos `pull_request`) — valida que la
   descripción del PR realmente llenó `Changes Made` / `Testing
   Information` / `Notes` del template; falla si alguna sección quedó vacía
@@ -254,3 +260,9 @@ cada usuario humano se capturan en el login de la aplicación, no en `.env`.
 - Modelo físico completo (Parte 1) — tablas de `inventory` aún no creadas.
 - Estrategia de expiración/cierre de `DataSource` huérfanos en `SqlSessionPort`
   (timeout de sesión, límite de conexiones concurrentes por login).
+- Branch protection en `main`/`develop`: el repo es privado bajo cuenta
+  personal, y GitHub exige plan Pro (o repo público) para habilitarlo — por
+  ahora no hay protección real del lado de GitHub, se depende de disciplina
+  del equipo (feature branch → PR → develop → PR → main, sin push directo).
+  Retomar si alguien del equipo activa el GitHub Student Developer Pack
+  (da Pro gratis con correo institucional).
