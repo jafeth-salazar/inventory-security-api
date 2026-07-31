@@ -185,24 +185,39 @@ Dos tipos de test, con propósitos distintos — no se mezclan:
 
 ## CI
 
-`.github/workflows/ci.yml` corre en cada push/PR a `main` o `develop`:
+`.github/workflows/ci.yml` corre en cada PR hacia `develop` o `main`
+(`feature/* → develop` y `develop → main`), y en cada push a `main`
+(confirmación post-merge). A propósito **no** corre en push directo a
+`develop`: si `push` también disparara ahí, un commit directo a `develop`
+mientras hay un PR abierto hacia `main` dispararía el workflow dos veces
+(una por el push, otra por el "synchronize" del PR), duplicando los checks
+en la UI — ya nos pasó una vez.
 
-- `prettier --check` → `eslint --max-warnings=0` (sin `--fix`, solo verifica)
-  → `nest build` → `npm test` (unit) → `npm audit --omit=dev --audit-level=high`.
-  Es la red de seguridad además de Husky — cubre el caso de alguien
-  commiteando con `--no-verify` o sin los hooks instalados. El audit se
-  limita a dependencias de producción a propósito: las devDependencies de
+Cada verificación es su propio job, así aparecen como checks separados en
+la UI de GitHub en vez de agruparse en uno solo:
+
+- **`format`** — `prettier --check` (sin `--fix`, solo verifica).
+- **`lint`** — `eslint --max-warnings=0`.
+- **`build`** — `nest build`.
+- **`test`** — `npm test` (unit).
+- **`audit`** — `npm audit --omit=dev --audit-level=high`. Se limita a
+  dependencias de producción a propósito: las devDependencies de
   ESLint/Jest arrastran vulnerabilidades transitivas conocidas (ReDoS en
   `brace-expansion`/`minimatch`) que no afectan el build ni el runtime.
-- Un segundo job (`pr-template`, solo en eventos `pull_request`) valida que
-  la descripción del PR realmente llenó `Changes Made` / `Testing
-  Information` / `Notes` del template — falla si alguna sección quedó vacía
+- **`pr-template`** (solo en eventos `pull_request`) — valida que la
+  descripción del PR realmente llenó `Changes Made` / `Testing
+  Information` / `Notes` del template; falla si alguna sección quedó vacía
   o con el placeholder `-` sin editar.
+
+Es la red de seguridad además de Husky — cubre el caso de alguien
+commiteando con `--no-verify` o sin los hooks instalados.
 
 ## Git
 
-- `main` — estable, solo vía PR.
-- `develop` — rama de trabajo por defecto.
+- `main` — estable, solo vía PR desde `develop`.
+- `develop` — rama de integración, solo vía PR desde ramas de feature.
+- Flujo: `feature/lo-que-sea` → PR → `develop` → PR → `main`. Nada de
+  commits directos a `develop` o `main`.
 - Convención de commits: `tipo(scope): descripción` (ver historial para ejemplos).
 
 ## Comandos
