@@ -193,17 +193,24 @@ mientras hay un PR abierto hacia `main` dispararía el workflow dos veces
 (una por el push, otra por el "synchronize" del PR), duplicando los checks
 en la UI — ya nos pasó una vez.
 
-- `prettier --check` → `eslint --max-warnings=0` (sin `--fix`, solo verifica)
-  → `nest build` → `npm test` (unit) → `npm audit --omit=dev --audit-level=high`.
-  Es la red de seguridad además de Husky — cubre el caso de alguien
-  commiteando con `--no-verify` o sin los hooks instalados. El audit se
-  limita a dependencias de producción a propósito: las devDependencies de
+Cada verificación es su propio job, así aparecen como checks separados en
+la UI de GitHub en vez de agruparse en uno solo:
+
+- **`format`** — `prettier --check` (sin `--fix`, solo verifica).
+- **`lint`** — `eslint --max-warnings=0`.
+- **`build`** — `nest build`.
+- **`test`** — `npm test` (unit).
+- **`audit`** — `npm audit --omit=dev --audit-level=high`. Se limita a
+  dependencias de producción a propósito: las devDependencies de
   ESLint/Jest arrastran vulnerabilidades transitivas conocidas (ReDoS en
   `brace-expansion`/`minimatch`) que no afectan el build ni el runtime.
-- Un segundo job (`pr-template`, solo en eventos `pull_request`) valida que
-  la descripción del PR realmente llenó `Changes Made` / `Testing
-  Information` / `Notes` del template — falla si alguna sección quedó vacía
+- **`pr-template`** (solo en eventos `pull_request`) — valida que la
+  descripción del PR realmente llenó `Changes Made` / `Testing
+  Information` / `Notes` del template; falla si alguna sección quedó vacía
   o con el placeholder `-` sin editar.
+
+Es la red de seguridad además de Husky — cubre el caso de alguien
+commiteando con `--no-verify` o sin los hooks instalados.
 
 ## Git
 
