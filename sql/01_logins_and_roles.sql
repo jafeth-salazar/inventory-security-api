@@ -20,6 +20,11 @@
    IMPORTANTE: las passwords de este script son placeholders.
    Cámbielas antes de la demo/defensa y nunca suba passwords reales
    a git. La de inventory_app debe coincidir con DB_PASSWORD en tu .env.
+
+   Ojo con CHECK_POLICY = ON: SQL Server rechaza cualquier password que
+   contenga el nombre del login (parte de la política de complejidad de
+   Windows). Por eso los supervisores NO usan su propio nombre dentro
+   de su password (p.ej. Jafeth no puede tener "Jafeth" en la suya).
    ============================================================ */
 
 -- ----------------------------------------------------------
@@ -47,11 +52,11 @@ IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'inv_operador4'
 
 -- Supervisores (lectura y escritura) — integrantes del grupo
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'Jafeth')
-    CREATE LOGIN Jafeth WITH PASSWORD = 'ChangeMe_Jafeth_2026!', CHECK_POLICY = ON;
+    CREATE LOGIN Jafeth WITH PASSWORD = 'ChangeMe_Supervisor1_2026!', CHECK_POLICY = ON;
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'Adrian')
-    CREATE LOGIN Adrian WITH PASSWORD = 'ChangeMe_Adrian_2026!', CHECK_POLICY = ON;
+    CREATE LOGIN Adrian WITH PASSWORD = 'ChangeMe_Supervisor2_2026!', CHECK_POLICY = ON;
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'Diego')
-    CREATE LOGIN Diego WITH PASSWORD = 'ChangeMe_Diego_2026!', CHECK_POLICY = ON;
+    CREATE LOGIN Diego WITH PASSWORD = 'ChangeMe_Supervisor3_2026!', CHECK_POLICY = ON;
 
 -- Auditores (solo lectura)
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'inv_auditor1')

@@ -34,7 +34,7 @@ services:
         set -e
         for f in /sql/*.sql; do
           echo "Running $$f";
-          /opt/mssql-tools18/bin/sqlcmd -C -S db -U sa -P "$$MSSQL_SA_PASSWORD" -i "$$f"
+          /opt/mssql-tools18/bin/sqlcmd -C -b -S db -U sa -P "$$MSSQL_SA_PASSWORD" -i "$$f"
         done
         echo "DB init complete."
 
