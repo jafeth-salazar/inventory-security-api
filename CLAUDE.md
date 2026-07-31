@@ -185,7 +185,11 @@ Dos tipos de test, con propósitos distintos — no se mezclan:
 
 ## CI
 
-`.github/workflows/ci.yml` corre en cada push/PR a `main` o `develop`:
+`.github/workflows/ci.yml` corre en cada PR hacia `main` y en cada push a
+`main` (post-merge). No corre en push directo a `develop` — si estuviera en
+ambos triggers a la vez, un push a `develop` con un PR abierto hacia `main`
+dispara el workflow dos veces (una por el push, otra por el "synchronize"
+del PR), duplicando los checks en la UI.
 
 - `prettier --check` → `eslint --max-warnings=0` (sin `--fix`, solo verifica)
   → `nest build` → `npm test` (unit) → `npm audit --omit=dev --audit-level=high`.
