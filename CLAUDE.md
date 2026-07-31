@@ -204,6 +204,12 @@ la UI de GitHub en vez de agruparse en uno solo:
   dependencias de producción a propósito: las devDependencies de
   ESLint/Jest arrastran vulnerabilidades transitivas conocidas (ReDoS en
   `brace-expansion`/`minimatch`) que no afectan el build ni el runtime.
+  Dependabot (`.github/dependabot.yml`) complementa esto abriendo PRs
+  semanales de actualización de dependencias contra `develop` — ojo: los
+  PRs de *security update* (activados por un advisory real, no por el
+  schedule) los abre GitHub siempre contra la rama por defecto (`main`),
+  sin importar `target-branch`; es una limitación de Dependabot, no algo
+  que podamos configurar.
 - **`pr-template`** (solo en eventos `pull_request`) — valida que la
   descripción del PR realmente llenó `Changes Made` / `Testing
   Information` / `Notes` del template; falla si alguna sección quedó vacía
