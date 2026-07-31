@@ -203,9 +203,17 @@ npm run start:dev        # Nest en modo watch
 npm run build             # nest build
 npm run test               # unit tests
 npm run test:e2e           # e2e (requiere `db` arriba)
-docker compose up --build  # levanta api + SQL Server 2022
-sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -i sql/01_logins_and_roles.sql
+docker compose up --build  # levanta db + db-init + api (ver abajo)
 ```
+
+`docker compose up` levanta tres servicios en orden: `db` (SQL Server 2022) →
+`db-init` (corre todos los `.sql` de `sql/` uno por uno contra `db`, en orden
+alfabético, y termina) → `api` (espera a que `db-init` termine bien). No hace
+falta correr `sqlcmd` a mano — cualquier script nuevo que se agregue en
+`sql/` con el prefijo numérico correcto (`02_...`, `03_...`) se ejecuta solo
+la próxima vez que se levante el stack. Los scripts en `sql/` deben ser
+idempotentes (`IF NOT EXISTS ...`) porque `db-init` corre en cada `up`, no
+solo la primera vez.
 
 ## Variables de entorno
 
