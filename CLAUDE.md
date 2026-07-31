@@ -107,6 +107,24 @@ un JWT de vida corta emitido tras el login. Un `SqlSessionGuard` en cada
 request resuelve el `sessionId` del JWT y expone el `DataSource` correcto al
 resto de la petición. Logout / expiración del JWT cierra la conexión.
 
+**Transporte: JWT Bearer, no API Key.** Una API key es un secreto único y
+estático por cliente — sirve para servicio-a-servicio, no para representar a
+una persona con un rol de SQL Server que puede cambiar (password rotada,
+login deshabilitado, etc.). Aquí el flujo es:
+
+1. `POST /auth/login` es la **única ruta pública** — recibe `usuario`/
+   `password` reales de SQL Server y se los pasa tal cual a
+   `SqlSessionPort.authenticate`.
+2. Si el login contra SQL Server tiene éxito, se emite un JWT de vida corta
+   con el `sessionId` adentro. El JWT nunca contiene la password ni el rol —
+   el rol lo sigue decidiendo SQL Server en cada query.
+3. Todas las demás rutas van detrás de un guard **global** (`APP_GUARD` +
+   `SqlSessionGuard`), así no hay que acordarse de protegerlas una por una.
+   Se marca la excepción del login con un decorador `@Public()`.
+4. El guard lee `Authorization: Bearer <token>`, resuelve el `sessionId` y
+   engancha el `DataSource` correspondiente al request. Los controllers y
+   casos de uso nunca ven credenciales ni deciden el rol.
+
 Consecuencia práctica: **las tablas TypeORM (entidades) se pueden compartir
 entre roles**, pero cada repositorio concreto ejecuta sus queries con el
 `DataSource` de la sesión activa, no con un pool fijo. Un operador que intente
