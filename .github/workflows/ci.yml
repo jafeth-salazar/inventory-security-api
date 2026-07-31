@@ -19,8 +19,49 @@ jobs:
 
       - run: npm ci
 
+      - run: npx prettier --check "src/**/*.ts" "test/**/*.ts"
+
       - run: npx eslint "{src,apps,libs,test}/**/*.ts" --max-warnings=0
 
       - run: npm run build
 
       - run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  pr-template:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR description follows the template
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const requiredSections = ['Changes Made', 'Testing Information', 'Notes'];
+            const errors = [];
+
+            for (const section of requiredSections) {
+              const re = new RegExp(`##\\s*${section}\\s*\\n+([\\s\\S]*?)(?=\\n##\\s|$)`, 'i');
+              const match = body.match(re);
+              if (!match) {
+                errors.push(`Falta la sección "## ${section}".`);
+                continue;
+              }
+              const content = match[1]
+                .split('\n')
+                .filter((line) => line.trim() && line.trim() !== '-')
+                .join('\n')
+                .trim();
+              if (!content) {
+                errors.push(`La sección "## ${section}" está vacía (solo tiene el placeholder del template).`);
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(
+                'La descripción del PR no sigue el template (.github/PULL_REQUEST_TEMPLATE.md):\n' +
+                  errors.join('\n'),
+              );
+            }
