@@ -254,3 +254,9 @@ cada usuario humano se capturan en el login de la aplicación, no en `.env`.
 - Modelo físico completo (Parte 1) — tablas de `inventory` aún no creadas.
 - Estrategia de expiración/cierre de `DataSource` huérfanos en `SqlSessionPort`
   (timeout de sesión, límite de conexiones concurrentes por login).
+- Branch protection en `main`/`develop`: el repo es privado bajo cuenta
+  personal, y GitHub exige plan Pro (o repo público) para habilitarlo — por
+  ahora no hay protección real del lado de GitHub, se depende de disciplina
+  del equipo (feature branch → PR → develop → PR → main, sin push directo).
+  Retomar si alguien del equipo activa el GitHub Student Developer Pack
+  (da Pro gratis con correo institucional).
