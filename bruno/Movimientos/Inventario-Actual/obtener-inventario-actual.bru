@@ -1,0 +1,11 @@
+meta {
+  name: Obtener inventario actual por id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/inventario-actual/{{inventarioActualId}}
+  body: none
+  auth: inherit
+}

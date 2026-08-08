@@ -1,0 +1,17 @@
+meta {
+  name: Actualizar producto
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/productos/{{productoId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "precioUnitario": "14.00"
+  }
+}

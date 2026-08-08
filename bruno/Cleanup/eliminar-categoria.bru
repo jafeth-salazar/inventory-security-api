@@ -1,0 +1,14 @@
+meta {
+  name: Eliminar categoria
+  type: http
+  seq: 4
+  tags: [
+    cleanup
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/categorias/{{categoriaId}}
+  body: none
+  auth: inherit
+}

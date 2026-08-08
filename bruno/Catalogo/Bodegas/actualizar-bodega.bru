@@ -1,0 +1,17 @@
+meta {
+  name: Actualizar bodega
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/bodegas/{{bodegaId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "ubicacion": "Cartago"
+  }
+}
