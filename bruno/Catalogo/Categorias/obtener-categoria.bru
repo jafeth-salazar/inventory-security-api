@@ -1,0 +1,11 @@
+meta {
+  name: Obtener categoria por id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/categorias/{{categoriaId}}
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,11 @@
+meta {
+  name: Eliminar bodega
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/bodegas/{{bodegaId}}
+  body: none
+  auth: inherit
+}

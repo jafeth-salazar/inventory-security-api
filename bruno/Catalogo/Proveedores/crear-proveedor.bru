@@ -1,0 +1,24 @@
+meta {
+  name: Crear proveedor
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/proveedores
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Proveedor Central S.A.",
+    "telefono": "2222-3333",
+    "correo": "contacto@proveedor.com",
+    "direccion": "San José, Costa Rica"
+  }
+}
+
+script:post-response {
+  bru.setVar("proveedorId", res.body.id);
+}

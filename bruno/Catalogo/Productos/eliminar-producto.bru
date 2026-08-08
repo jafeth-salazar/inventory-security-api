@@ -1,0 +1,11 @@
+meta {
+  name: Eliminar producto
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/productos/{{productoId}}
+  body: none
+  auth: inherit
+}

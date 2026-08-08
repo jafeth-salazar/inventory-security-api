@@ -1,0 +1,25 @@
+meta {
+  name: Crear producto
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/productos
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Mouse óptico",
+    "descripcion": "Mouse inalámbrico",
+    "precioUnitario": "12.50",
+    "categoriaId": "{{categoriaId}}",
+    "proveedorId": "{{proveedorId}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("productoId", res.body.id);
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Listar inventario actual
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/inventario-actual
+  body: none
+  auth: inherit
+}
+
+script:post-response {
+  const productoId = bru.getVar("productoId");
+  const bodegaId = bru.getVar("bodegaId");
+  const filas = Array.isArray(res.body) ? res.body : [];
+  const fila = filas.find(
+    (f) => f.productoId === productoId && f.bodegaId === bodegaId
+  );
+  if (fila) {
+    bru.setVar("inventarioActualId", fila.id);
+  }
+}

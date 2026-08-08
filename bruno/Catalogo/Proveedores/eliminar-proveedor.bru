@@ -1,0 +1,11 @@
+meta {
+  name: Eliminar proveedor
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/proveedores/{{proveedorId}}
+  body: none
+  auth: inherit
+}

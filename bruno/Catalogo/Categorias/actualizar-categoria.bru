@@ -1,0 +1,17 @@
+meta {
+  name: Actualizar categoria
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/categorias/{{categoriaId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Electrónica y Cómputo"
+  }
+}
