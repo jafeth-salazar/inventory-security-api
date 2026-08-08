@@ -4,13 +4,15 @@ import { DataSource } from 'typeorm';
 import {
   BodegaOrmEntity,
   CategoriaOrmEntity,
+  ProductoOrmEntity,
+  ProveedorOrmEntity,
+} from '../../../modules/inventory/catalogo/infrastructure/persistence/typeorm/entities';
+import {
   EntradaInventarioOrmEntity,
   InventarioActualOrmEntity,
   OrdenCompraOrmEntity,
-  ProductoOrmEntity,
-  ProveedorOrmEntity,
   SalidaInventarioOrmEntity,
-} from '../../../inventory/infrastructure/persistence/typeorm/entities';
+} from '../../../modules/inventory/movimientos/infrastructure/persistence/typeorm/entities';
 
 config();
 

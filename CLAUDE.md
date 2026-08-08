@@ -36,58 +36,95 @@ ejecutarse con la conexión del usuario real que la originó.
 - **Docker Compose** para levantar `api` + `db` (ver `docker-compose.yml`)
 - Jest para unit/e2e
 
-## Arquitectura: Hexagonal (Ports & Adapters)
+## Arquitectura: Clean Architecture + Hexagonal (Ports & Adapters)
 
-Cada bounded context es una carpeta bajo `src/` con tres capas. La regla de
-dependencia es de afuera hacia adentro — nunca al revés:
+Cada módulo es una vertical slice autocontenida bajo `src/modules/`, con
+cuatro capas. La regla de dependencia es de afuera hacia adentro — nunca al
+revés:
 
 ```
-infrastructure  →  application  →  domain
+Presentation → Application → Domain
+Infrastructure → Domain
 ```
 
 - **`domain/`** — entidades, value objects y los *ports* (interfaces) que la
   capa de aplicación necesita. Cero imports de NestJS, TypeORM o `mssql`. Si
   una clase aquí importa un decorador de Nest, está en la carpeta equivocada.
 - **`application/`** — casos de uso (una clase = una acción de negocio, p.ej.
-  `RegistrarEntradaInventario`, `ListarBitacoraAuditoria`). Dependen solo de
-  los ports del dominio, nunca de una implementación concreta.
-- **`infrastructure/`** — todo lo que sabe de frameworks: controladores HTTP,
-  DTOs de request/response, entidades TypeORM, adapters que implementan los
+  `RegistrarEntradaInventario`, `ListarBitacoraAuditoria`), servicios,
+  listeners y jobs de NestJS. Dependen solo de los ports del dominio, nunca de
+  una implementación concreta.
+- **`infrastructure/`** — entidades TypeORM, adapters que implementan los
   ports contra la base de datos, y el módulo de Nest que conecta todo con
   inyección de dependencias (`{ provide: PRODUCTO_REPOSITORY, useClass:
   TypeOrmProductoRepository }`).
+- **`presentation/`** — controllers REST y sus DTOs de request/response.
+  Solo mapea HTTP ↔ casos de uso; no conoce TypeORM ni decide el rol de quien
+  llama (eso lo resuelve SQL Server, ver más abajo).
 
 ```
 src/
-  shared/
-    domain/                # Value objects transversales (Dinero, Email, Telefono)
-    infrastructure/
-      sql-session/          # Ver "Sesión SQL dinámica" abajo
-  auth/
-    domain/
-    application/            # Autenticar(usuario, password) -> Sesión
-    infrastructure/
-      auth.module.ts
-  inventory/
-    domain/
-      entities/              # Producto, Categoria, Proveedor, Bodega, ...
-      ports/                 # ProductoRepositoryPort, EntradaInventarioRepositoryPort...
-    application/
-      use-cases/
-    infrastructure/
-      http/                  # Controllers + DTOs
-      persistence/typeorm/   # Entidades TypeORM + repositorios concretos
-      inventory.module.ts
-  audit/
-    domain/
-    application/             # ListarBitacoraAuditoria (filtros: accion, rango fechas, usuario)
-    infrastructure/
-      http/
-      persistence/typeorm/   # Solo lectura sobre el schema `audit`
-      audit.module.ts
+  modules/
+    shared/
+      domain/                # Value objects transversales (Dinero, Email, Telefono)
+      infrastructure/
+        sql-session/          # Ver "Sesión SQL dinámica" abajo
+    auth/
+      domain/
+      application/            # Autenticar(usuario, password) -> Sesión
+      infrastructure/
+        auth.module.ts
+      presentation/
+        auth.controller.ts    # POST /auth/login (única ruta @Public())
+    inventory/
+      catalogo/                # Producto, Categoria, Proveedor, Bodega
+        domain/
+          ports/                 # ProductoRepositoryPort, BodegaRepositoryPort...
+        application/
+          use-cases/
+        infrastructure/
+          persistence/typeorm/   # Entidades TypeORM + repositorios concretos
+        presentation/
+          http/                  # Controllers + DTOs
+        catalogo.module.ts
+      movimientos/             # EntradaInventario, SalidaInventario, OrdenCompra, InventarioActual
+        domain/
+          ports/                 # EntradaInventarioRepositoryPort...
+        application/
+          use-cases/             # RegistrarEntradaInventario, RegistrarSalidaInventario...
+        infrastructure/
+          persistence/typeorm/   # Entidades TypeORM + repositorios concretos
+                                  # (dependen de las entidades de ../catalogo)
+        presentation/
+          http/
+        movimientos.module.ts
+      inventory.module.ts     # Agrega CatalogoModule + MovimientosModule
+    audit/
+      domain/
+      application/             # ListarBitacoraAuditoria (filtros: accion, rango fechas, usuario)
+      infrastructure/
+        persistence/typeorm/   # Solo lectura sobre el schema `audit`
+        audit.module.ts
+      presentation/
+        http/
+  infrastructure/
+    persistence/typeorm/       # DataSource + migraciones + seed del CLI — cruza todos los
+                                # módulos (una sola tabla de migraciones para toda la DB),
+                                # por eso vive fuera de modules/ y no dentro de un módulo
   app.module.ts
   main.ts
 ```
+
+### Un solo estilo — hexagonal
+
+Todo módulo (`shared`, `auth`, `inventory`, `audit`) sigue el split
+`domain/application/infrastructure/presentation` de arriba — no existe (ni va
+a existir) una estructura "legacy" plana (`entities/`, `controllers/`, `dtos/`
+sueltos en la raíz del módulo) para migrar. El proyecto arrancó directamente
+con Hexagonal, así que esto no es una migración en curso sino la convención
+desde el primer commit de cada módulo.
+
+Cualquier módulo nuevo que se agregue a futuro sigue el mismo patrón.
 
 ### Sesión SQL dinámica (la pieza central)
 

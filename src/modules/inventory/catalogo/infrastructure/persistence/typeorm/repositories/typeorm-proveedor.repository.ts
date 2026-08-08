@@ -1,0 +1,61 @@
+import { Injectable, Scope } from '@nestjs/common';
+
+import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
+import { Proveedor } from '../../../../domain/entities/proveedor.entity';
+import {
+  DatosActualizarProveedor,
+  DatosCrearProveedor,
+  ProveedorRepositoryPort,
+} from '../../../../domain/ports/proveedor-repository.port';
+import { ProveedorOrmEntity } from '../entities/proveedor.orm-entity';
+
+@Injectable({ scope: Scope.REQUEST })
+export class TypeOrmProveedorRepository implements ProveedorRepositoryPort {
+  constructor(private readonly currentSqlSession: CurrentSqlSession) {}
+
+  async crear(datos: DatosCrearProveedor): Promise<Proveedor> {
+    const repositorio = this.repositorioOrm();
+    const creado = await repositorio.save(repositorio.create(datos));
+    return this.toDomain(creado);
+  }
+
+  async listar(): Promise<Proveedor[]> {
+    const filas = await this.repositorioOrm().find();
+    return filas.map((fila) => this.toDomain(fila));
+  }
+
+  async obtenerPorId(id: string): Promise<Proveedor | null> {
+    const fila = await this.repositorioOrm().findOneBy({ id });
+    return fila ? this.toDomain(fila) : null;
+  }
+
+  async actualizar(
+    id: string,
+    cambios: DatosActualizarProveedor,
+  ): Promise<Proveedor> {
+    const repositorio = this.repositorioOrm();
+    await repositorio.update({ id }, cambios);
+    const actualizado = await repositorio.findOneBy({ id });
+    return this.toDomain(actualizado as ProveedorOrmEntity);
+  }
+
+  async eliminar(id: string): Promise<void> {
+    await this.repositorioOrm().delete({ id });
+  }
+
+  private repositorioOrm() {
+    return this.currentSqlSession
+      .getDataSource()
+      .getRepository(ProveedorOrmEntity);
+  }
+
+  private toDomain(fila: ProveedorOrmEntity): Proveedor {
+    return new Proveedor(
+      fila.id,
+      fila.nombre,
+      fila.telefono,
+      fila.correo,
+      fila.direccion,
+    );
+  }
+}
