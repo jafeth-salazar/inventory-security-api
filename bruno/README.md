@@ -38,32 +38,37 @@ runtime; el resto de los requests heredan `Bearer {{accessToken}}` desde la
 autenticación de la colección (`auth: inherit`). No hay que copiar/pegar el
 JWT a mano en ningún lado.
 
-`Auth/Logout` cierra esa sesión SQL explícitamente (`closeSession`). Como
-Bruno corre las carpetas completas en orden, si usás "Run Collection" sobre
-toda la colección `Logout` se ejecuta junto con `Login` al principio (ambos
-viven en la carpeta `Auth`) — para probar el flujo real de login → operar →
-logout, corré `Auth/Login` una vez, las carpetas `Catalogo`/`Movimientos` en
-orden, y `Auth/Logout` a mano al final de la sesión de pruebas.
+`Cleanup/Logout` cierra esa sesión SQL explícitamente (`closeSession`) — vive
+al final de la colección a propósito (no en `Auth`, junto a `Login`), para
+que un "Run Collection" sobre toda la colección haga login una sola vez al
+principio y logout una sola vez al final, en vez de cerrar la sesión antes de
+poder probar nada.
 
 ## Orden pensado para correr de punta a punta
 
-`Catalogo` (Categorias → Proveedores → Bodegas → Productos) y luego
-`Movimientos` (Ordenes-Compra → Entradas-Inventario → Inventario-Actual →
-Salidas-Inventario) están numerados para contar una historia real: se crea
-una categoría, un proveedor, una bodega y un producto; se registra una orden
-de compra y una entrada de 50 unidades; se lista el inventario actual
-(debería reflejar 50); se registra una salida de 5 unidades. El request
+La colección completa (`Auth` → `Catalogo` → `Movimientos` → `Cleanup`) se
+puede correr de una sola vez con "Run Collection" (o `bru run -r` por CLI) y
+cuenta una historia real: login → se crea una categoría, un proveedor, una
+bodega y un producto → se registra una orden de compra y una entrada de 50
+unidades → se lista el inventario actual (debería reflejar 50) → se registra
+una salida de 5 unidades → cleanup → logout. El request
 `Salidas-Inventario/Crear salida de inventario` usa `cantidad: 5` a propósito
 (menor a las 50 que entraron) para que el flujo feliz funcione — subile la
 cantidad más allá del stock disponible si querés ver el `400
 StockInsuficienteError` a propósito.
 
-Los `Eliminar *` de cada carpeta de `Catalogo` NO son parte de este flujo
-principal — son para pruebas sueltas de `DELETE`. Si los corrés después de
-haber generado movimientos con esos mismos registros (producto, categoría,
-proveedor, bodega), SQL Server va a rechazar el `DELETE` con un error de
-llave foránea: es el comportamiento correcto de integridad referencial, no
-un bug de la colección.
+Los `Eliminar *` viven en la carpeta `Cleanup` (con el tag `cleanup`, filtrable
+con `--exclude-tags=cleanup` si no los querés correr) y no en la carpeta de
+cada entidad — a propósito: si vivieran junto a su `crear`/`listar`/`obtener`,
+un "Run Collection" borraría la categoría/proveedor/bodega recién creada
+*antes* de que `Productos`/`Movimientos` los usaran, rompiendo toda la
+secuencia (así estaba armada la colección originalmente y así se rompía).
+Como `Cleanup` corre al final, cuando `Movimientos` ya generó entradas/salidas
+contra esos mismos registros, SQL Server va a rechazar esos 4 `DELETE` con un
+error de llave foránea (`500`, error 547 de SQL Server) — es el comportamiento
+correcto de integridad referencial, no un bug de la colección. Si querés ver
+un `DELETE` exitoso, corré uno de los `Eliminar *` a mano justo después de
+crear el registro (antes de que `Movimientos` lo use).
 
 ## Qué esperar según el rol
 
