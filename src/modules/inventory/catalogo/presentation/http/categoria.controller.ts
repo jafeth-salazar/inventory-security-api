@@ -5,13 +5,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
 
-import { EntidadNoEncontradaError } from '../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { ActualizarCategoria } from '../../application/use-cases/actualizar-categoria.use-case';
 import { CrearCategoria } from '../../application/use-cases/crear-categoria.use-case';
 import { EliminarCategoria } from '../../application/use-cases/eliminar-categoria.use-case';
@@ -44,9 +42,7 @@ export class CategoriaController {
 
   @Get(':id')
   async obtener(@Param('id') id: string): Promise<Categoria> {
-    return this.manejarNoEncontrada(() =>
-      this.obtenerCategoriaPorId.ejecutar(id),
-    );
+    return this.obtenerCategoriaPorId.ejecutar(id);
   }
 
   @Patch(':id')
@@ -54,25 +50,12 @@ export class CategoriaController {
     @Param('id') id: string,
     @Body() dto: ActualizarCategoriaDto,
   ): Promise<Categoria> {
-    return this.manejarNoEncontrada(() =>
-      this.actualizarCategoria.ejecutar(id, dto),
-    );
+    return this.actualizarCategoria.ejecutar(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id') id: string): Promise<void> {
-    return this.manejarNoEncontrada(() => this.eliminarCategoria.ejecutar(id));
-  }
-
-  private async manejarNoEncontrada<T>(accion: () => Promise<T>): Promise<T> {
-    try {
-      return await accion();
-    } catch (error) {
-      if (error instanceof EntidadNoEncontradaError) {
-        throw new NotFoundException(error.message);
-      }
-      throw error;
-    }
+    return this.eliminarCategoria.ejecutar(id);
   }
 }

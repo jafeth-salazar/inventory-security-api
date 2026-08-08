@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 
+import { EntidadNoEncontradaError } from '../../../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
 import { Producto } from '../../../../domain/entities/producto.entity';
 import {
@@ -36,7 +37,10 @@ export class TypeOrmProductoRepository implements ProductoRepositoryPort {
     const repositorio = this.repositorioOrm();
     await repositorio.update({ id }, cambios);
     const actualizado = await repositorio.findOneBy({ id });
-    return this.toDomain(actualizado as ProductoOrmEntity);
+    if (!actualizado) {
+      throw new EntidadNoEncontradaError('Producto', id);
+    }
+    return this.toDomain(actualizado);
   }
 
   async eliminar(id: string): Promise<void> {

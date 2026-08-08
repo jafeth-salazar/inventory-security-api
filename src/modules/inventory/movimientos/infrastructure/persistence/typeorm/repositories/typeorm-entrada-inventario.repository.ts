@@ -7,6 +7,7 @@ import {
   EntradaInventarioRepositoryPort,
 } from '../../../../domain/ports/entrada-inventario-repository.port';
 import { EntradaInventarioOrmEntity } from '../entities/entrada-inventario.orm-entity';
+import { InventarioActualOrmEntity } from '../entities/inventario-actual.orm-entity';
 import { upsertInventarioActual } from '../upsert-inventario-actual';
 
 @Injectable({ scope: Scope.REQUEST })
@@ -15,27 +16,39 @@ export class TypeOrmEntradaInventarioRepository implements EntradaInventarioRepo
 
   async registrarConActualizacionDeStock(
     datos: DatosRegistrarEntradaInventario,
-    nuevaCantidadActual: number,
   ): Promise<EntradaInventario> {
     const dataSource = this.currentSqlSession.getDataSource();
 
-    const entradaCreada = await dataSource.transaction(async (manager) => {
-      const repositorioEntradas = manager.getRepository(
-        EntradaInventarioOrmEntity,
-      );
-      const entrada = await repositorioEntradas.save(
-        repositorioEntradas.create(datos),
-      );
+    const entradaCreada = await dataSource.transaction(
+      'SERIALIZABLE',
+      async (manager) => {
+        const repositorioInventario = manager.getRepository(
+          InventarioActualOrmEntity,
+        );
+        const existente = await repositorioInventario.findOneBy({
+          productoId: datos.productoId,
+          bodegaId: datos.bodegaId,
+        });
+        const cantidadActual = existente?.cantidadActual ?? 0;
 
-      await upsertInventarioActual(
-        manager,
-        datos.productoId,
-        datos.bodegaId,
-        nuevaCantidadActual,
-      );
+        const repositorioEntradas = manager.getRepository(
+          EntradaInventarioOrmEntity,
+        );
+        const entrada = await repositorioEntradas.save(
+          repositorioEntradas.create(datos),
+        );
 
-      return entrada;
-    });
+        await upsertInventarioActual(
+          manager,
+          datos.productoId,
+          datos.bodegaId,
+          cantidadActual + datos.cantidad,
+          existente,
+        );
+
+        return entrada;
+      },
+    );
 
     return this.toDomain(entradaCreada);
   }

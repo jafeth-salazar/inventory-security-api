@@ -23,6 +23,9 @@ export class ActualizarProducto {
     if (!existente) {
       throw new EntidadNoEncontradaError('Producto', id);
     }
+    if (Object.keys(cambios).length === 0) {
+      return existente;
+    }
     return this.productoRepository.actualizar(id, cambios);
   }
 }

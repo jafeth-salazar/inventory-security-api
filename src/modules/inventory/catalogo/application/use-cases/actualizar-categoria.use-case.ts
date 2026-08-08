@@ -23,6 +23,9 @@ export class ActualizarCategoria {
     if (!existente) {
       throw new EntidadNoEncontradaError('Categoria', id);
     }
+    if (Object.keys(cambios).length === 0) {
+      return existente;
+    }
     return this.categoriaRepository.actualizar(id, cambios);
   }
 }

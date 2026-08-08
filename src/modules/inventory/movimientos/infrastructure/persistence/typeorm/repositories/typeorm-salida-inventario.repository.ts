@@ -2,10 +2,12 @@ import { Injectable, Scope } from '@nestjs/common';
 
 import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
 import { SalidaInventario } from '../../../../domain/entities/salida-inventario.entity';
+import { StockInsuficienteError } from '../../../../domain/errors/stock-insuficiente.error';
 import {
   DatosRegistrarSalidaInventario,
   SalidaInventarioRepositoryPort,
 } from '../../../../domain/ports/salida-inventario-repository.port';
+import { InventarioActualOrmEntity } from '../entities/inventario-actual.orm-entity';
 import { SalidaInventarioOrmEntity } from '../entities/salida-inventario.orm-entity';
 import { upsertInventarioActual } from '../upsert-inventario-actual';
 
@@ -15,27 +17,48 @@ export class TypeOrmSalidaInventarioRepository implements SalidaInventarioReposi
 
   async registrarConActualizacionDeStock(
     datos: DatosRegistrarSalidaInventario,
-    nuevaCantidadActual: number,
   ): Promise<SalidaInventario> {
     const dataSource = this.currentSqlSession.getDataSource();
 
-    const salidaCreada = await dataSource.transaction(async (manager) => {
-      const repositorioSalidas = manager.getRepository(
-        SalidaInventarioOrmEntity,
-      );
-      const salida = await repositorioSalidas.save(
-        repositorioSalidas.create(datos),
-      );
+    const salidaCreada = await dataSource.transaction(
+      'SERIALIZABLE',
+      async (manager) => {
+        const repositorioInventario = manager.getRepository(
+          InventarioActualOrmEntity,
+        );
+        const existente = await repositorioInventario.findOneBy({
+          productoId: datos.productoId,
+          bodegaId: datos.bodegaId,
+        });
+        const cantidadActual = existente?.cantidadActual ?? 0;
 
-      await upsertInventarioActual(
-        manager,
-        datos.productoId,
-        datos.bodegaId,
-        nuevaCantidadActual,
-      );
+        if (cantidadActual < datos.cantidad) {
+          throw new StockInsuficienteError(
+            datos.productoId,
+            datos.bodegaId,
+            datos.cantidad,
+            cantidadActual,
+          );
+        }
 
-      return salida;
-    });
+        const repositorioSalidas = manager.getRepository(
+          SalidaInventarioOrmEntity,
+        );
+        const salida = await repositorioSalidas.save(
+          repositorioSalidas.create(datos),
+        );
+
+        await upsertInventarioActual(
+          manager,
+          datos.productoId,
+          datos.bodegaId,
+          cantidadActual - datos.cantidad,
+          existente,
+        );
+
+        return salida;
+      },
+    );
 
     return this.toDomain(salidaCreada);
   }

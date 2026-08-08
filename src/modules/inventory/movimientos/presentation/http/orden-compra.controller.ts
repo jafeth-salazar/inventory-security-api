@@ -1,13 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 
-import { EntidadNoEncontradaError } from '../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { ListarOrdenesCompra } from '../../application/use-cases/listar-ordenes-compra.use-case';
 import { ObtenerOrdenCompraPorId } from '../../application/use-cases/obtener-orden-compra-por-id.use-case';
 import { RegistrarOrdenCompra } from '../../application/use-cases/registrar-orden-compra.use-case';
@@ -38,13 +30,6 @@ export class OrdenCompraController {
 
   @Get(':id')
   async obtener(@Param('id') id: string): Promise<OrdenCompra> {
-    try {
-      return await this.obtenerOrdenCompraPorId.ejecutar(id);
-    } catch (error) {
-      if (error instanceof EntidadNoEncontradaError) {
-        throw new NotFoundException(error.message);
-      }
-      throw error;
-    }
+    return this.obtenerOrdenCompraPorId.ejecutar(id);
   }
 }

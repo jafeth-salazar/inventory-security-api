@@ -20,6 +20,9 @@ export class ActualizarBodega {
     if (!existente) {
       throw new EntidadNoEncontradaError('Bodega', id);
     }
+    if (Object.keys(cambios).length === 0) {
+      return existente;
+    }
     return this.bodegaRepository.actualizar(id, cambios);
   }
 }

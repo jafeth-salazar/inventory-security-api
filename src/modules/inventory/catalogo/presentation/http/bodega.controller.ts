@@ -5,13 +5,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
 
-import { EntidadNoEncontradaError } from '../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { ActualizarBodega } from '../../application/use-cases/actualizar-bodega.use-case';
 import { CrearBodega } from '../../application/use-cases/crear-bodega.use-case';
 import { EliminarBodega } from '../../application/use-cases/eliminar-bodega.use-case';
@@ -47,7 +45,7 @@ export class BodegaController {
 
   @Get(':id')
   async obtener(@Param('id') id: string): Promise<Bodega> {
-    return this.manejarNoEncontrada(() => this.obtenerBodegaPorId.ejecutar(id));
+    return this.obtenerBodegaPorId.ejecutar(id);
   }
 
   @Patch(':id')
@@ -55,25 +53,12 @@ export class BodegaController {
     @Param('id') id: string,
     @Body() dto: ActualizarBodegaDto,
   ): Promise<Bodega> {
-    return this.manejarNoEncontrada(() =>
-      this.actualizarBodega.ejecutar(id, dto),
-    );
+    return this.actualizarBodega.ejecutar(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id') id: string): Promise<void> {
-    return this.manejarNoEncontrada(() => this.eliminarBodega.ejecutar(id));
-  }
-
-  private async manejarNoEncontrada<T>(accion: () => Promise<T>): Promise<T> {
-    try {
-      return await accion();
-    } catch (error) {
-      if (error instanceof EntidadNoEncontradaError) {
-        throw new NotFoundException(error.message);
-      }
-      throw error;
-    }
+    return this.eliminarBodega.ejecutar(id);
   }
 }

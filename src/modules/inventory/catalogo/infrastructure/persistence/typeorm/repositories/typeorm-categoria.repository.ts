@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 
+import { EntidadNoEncontradaError } from '../../../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
 import { Categoria } from '../../../../domain/entities/categoria.entity';
 import {
@@ -36,7 +37,10 @@ export class TypeOrmCategoriaRepository implements CategoriaRepositoryPort {
     const repositorio = this.repositorioOrm();
     await repositorio.update({ id }, cambios);
     const actualizada = await repositorio.findOneBy({ id });
-    return this.toDomain(actualizada as CategoriaOrmEntity);
+    if (!actualizada) {
+      throw new EntidadNoEncontradaError('Categoria', id);
+    }
+    return this.toDomain(actualizada);
   }
 
   async eliminar(id: string): Promise<void> {

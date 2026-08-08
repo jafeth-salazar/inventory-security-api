@@ -25,6 +25,10 @@ export class CurrentSqlSession {
     return this.sesionActiva().usuario;
   }
 
+  getSessionId(): string {
+    return this.sesionActiva().sessionId;
+  }
+
   private sesionActiva() {
     if (!this.request.sqlSession) {
       throw new UnauthorizedException(

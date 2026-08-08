@@ -5,13 +5,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
 
-import { EntidadNoEncontradaError } from '../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { ActualizarProducto } from '../../application/use-cases/actualizar-producto.use-case';
 import { CrearProducto } from '../../application/use-cases/crear-producto.use-case';
 import { EliminarProducto } from '../../application/use-cases/eliminar-producto.use-case';
@@ -50,9 +48,7 @@ export class ProductoController {
 
   @Get(':id')
   async obtener(@Param('id') id: string): Promise<Producto> {
-    return this.manejarNoEncontrada(() =>
-      this.obtenerProductoPorId.ejecutar(id),
-    );
+    return this.obtenerProductoPorId.ejecutar(id);
   }
 
   @Patch(':id')
@@ -60,25 +56,12 @@ export class ProductoController {
     @Param('id') id: string,
     @Body() dto: ActualizarProductoDto,
   ): Promise<Producto> {
-    return this.manejarNoEncontrada(() =>
-      this.actualizarProducto.ejecutar(id, dto),
-    );
+    return this.actualizarProducto.ejecutar(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id') id: string): Promise<void> {
-    return this.manejarNoEncontrada(() => this.eliminarProducto.ejecutar(id));
-  }
-
-  private async manejarNoEncontrada<T>(accion: () => Promise<T>): Promise<T> {
-    try {
-      return await accion();
-    } catch (error) {
-      if (error instanceof EntidadNoEncontradaError) {
-        throw new NotFoundException(error.message);
-      }
-      throw error;
-    }
+    return this.eliminarProducto.ejecutar(id);
   }
 }

@@ -1,5 +1,6 @@
 import { Injectable, Scope } from '@nestjs/common';
 
+import { EntidadNoEncontradaError } from '../../../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
 import { Bodega } from '../../../../domain/entities/bodega.entity';
 import {
@@ -36,7 +37,10 @@ export class TypeOrmBodegaRepository implements BodegaRepositoryPort {
     const repositorio = this.repositorioOrm();
     await repositorio.update({ id }, cambios);
     const actualizada = await repositorio.findOneBy({ id });
-    return this.toDomain(actualizada as BodegaOrmEntity);
+    if (!actualizada) {
+      throw new EntidadNoEncontradaError('Bodega', id);
+    }
+    return this.toDomain(actualizada);
   }
 
   async eliminar(id: string): Promise<void> {

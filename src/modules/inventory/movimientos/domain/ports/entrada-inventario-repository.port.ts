@@ -13,12 +13,11 @@ export const ENTRADA_INVENTARIO_REPOSITORY = Symbol(
 
 export interface EntradaInventarioRepositoryPort {
   /**
-   * Inserta la entrada y actualiza InventarioActual a `nuevaCantidadActual`
-   * en una sola transacción de BD.
+   * Inserta la entrada y actualiza InventarioActual en una sola transacción
+   * serializable.
    */
   registrarConActualizacionDeStock(
     datos: DatosRegistrarEntradaInventario,
-    nuevaCantidadActual: number,
   ): Promise<EntradaInventario>;
   listar(): Promise<EntradaInventario[]>;
   obtenerPorId(id: string): Promise<EntradaInventario | null>;

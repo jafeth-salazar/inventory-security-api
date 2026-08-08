@@ -39,16 +39,12 @@ class InventarioActualRepositoryFake implements InventarioActualRepositoryPort {
 }
 
 class SalidaInventarioRepositoryFake implements SalidaInventarioRepositoryPort {
-  llamadas: Array<{
-    datos: DatosRegistrarSalidaInventario;
-    nuevaCantidadActual: number;
-  }> = [];
+  llamadas: DatosRegistrarSalidaInventario[] = [];
 
   registrarConActualizacionDeStock(
     datos: DatosRegistrarSalidaInventario,
-    nuevaCantidadActual: number,
   ): Promise<SalidaInventario> {
-    this.llamadas.push({ datos, nuevaCantidadActual });
+    this.llamadas.push(datos);
     return Promise.resolve(
       new SalidaInventario(
         'salida-1',
@@ -100,8 +96,6 @@ describe('RegistrarSalidaInventario', () => {
 
     await registrarSalida.ejecutar(datos);
 
-    expect(salidaRepository.llamadas).toEqual([
-      { datos, nuevaCantidadActual: 20 },
-    ]);
+    expect(salidaRepository.llamadas).toEqual([datos]);
   });
 });

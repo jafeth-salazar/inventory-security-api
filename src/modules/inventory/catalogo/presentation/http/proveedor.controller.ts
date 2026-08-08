@@ -5,13 +5,11 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  NotFoundException,
   Param,
   Patch,
   Post,
 } from '@nestjs/common';
 
-import { EntidadNoEncontradaError } from '../../../../shared/domain/errors/entidad-no-encontrada.error';
 import { ActualizarProveedor } from '../../application/use-cases/actualizar-proveedor.use-case';
 import { CrearProveedor } from '../../application/use-cases/crear-proveedor.use-case';
 import { EliminarProveedor } from '../../application/use-cases/eliminar-proveedor.use-case';
@@ -49,9 +47,7 @@ export class ProveedorController {
 
   @Get(':id')
   async obtener(@Param('id') id: string): Promise<Proveedor> {
-    return this.manejarNoEncontrada(() =>
-      this.obtenerProveedorPorId.ejecutar(id),
-    );
+    return this.obtenerProveedorPorId.ejecutar(id);
   }
 
   @Patch(':id')
@@ -59,25 +55,12 @@ export class ProveedorController {
     @Param('id') id: string,
     @Body() dto: ActualizarProveedorDto,
   ): Promise<Proveedor> {
-    return this.manejarNoEncontrada(() =>
-      this.actualizarProveedor.ejecutar(id, dto),
-    );
+    return this.actualizarProveedor.ejecutar(id, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async eliminar(@Param('id') id: string): Promise<void> {
-    return this.manejarNoEncontrada(() => this.eliminarProveedor.ejecutar(id));
-  }
-
-  private async manejarNoEncontrada<T>(accion: () => Promise<T>): Promise<T> {
-    try {
-      return await accion();
-    } catch (error) {
-      if (error instanceof EntidadNoEncontradaError) {
-        throw new NotFoundException(error.message);
-      }
-      throw error;
-    }
+    return this.eliminarProveedor.ejecutar(id);
   }
 }

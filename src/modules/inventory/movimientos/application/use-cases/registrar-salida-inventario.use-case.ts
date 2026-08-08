@@ -38,10 +38,8 @@ export class RegistrarSalidaInventario {
       );
     }
 
-    const nuevaCantidadActual = cantidadDisponible - datos.cantidad;
     return this.salidaInventarioRepository.registrarConActualizacionDeStock(
       datos,
-      nuevaCantidadActual,
     );
   }
 }

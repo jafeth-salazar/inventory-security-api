@@ -7,18 +7,19 @@ export async function upsertInventarioActual(
   productoId: string,
   bodegaId: string,
   nuevaCantidadActual: number,
+  existente?: InventarioActualOrmEntity | null,
 ): Promise<void> {
   const repositorioInventario = manager.getRepository(
     InventarioActualOrmEntity,
   );
-  const existente = await repositorioInventario.findOneBy({
-    productoId,
-    bodegaId,
-  });
+  const fila =
+    existente === undefined
+      ? await repositorioInventario.findOneBy({ productoId, bodegaId })
+      : existente;
 
-  if (existente) {
+  if (fila) {
     await repositorioInventario.update(
-      { id: existente.id },
+      { id: fila.id },
       { cantidadActual: nuevaCantidadActual },
     );
     return;

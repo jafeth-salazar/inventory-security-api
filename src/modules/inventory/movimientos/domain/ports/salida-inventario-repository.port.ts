@@ -13,13 +13,11 @@ export const SALIDA_INVENTARIO_REPOSITORY = Symbol(
 
 export interface SalidaInventarioRepositoryPort {
   /**
-   * Inserta la salida y actualiza InventarioActual a `nuevaCantidadActual`
-   * en una sola transacción de BD. El llamador ya validó que hay stock
-   * suficiente antes de invocar este método.
+   * Valida stock suficiente y actualiza InventarioActual en una sola
+   * transacción serializable — lanza StockInsuficienteError si no alcanza.
    */
   registrarConActualizacionDeStock(
     datos: DatosRegistrarSalidaInventario,
-    nuevaCantidadActual: number,
   ): Promise<SalidaInventario>;
   listar(): Promise<SalidaInventario[]>;
   obtenerPorId(id: string): Promise<SalidaInventario | null>;

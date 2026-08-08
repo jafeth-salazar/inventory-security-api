@@ -23,6 +23,9 @@ export class ActualizarProveedor {
     if (!existente) {
       throw new EntidadNoEncontradaError('Proveedor', id);
     }
+    if (Object.keys(cambios).length === 0) {
+      return existente;
+    }
     return this.proveedorRepository.actualizar(id, cambios);
   }
 }

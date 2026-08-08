@@ -33,10 +33,8 @@ export class TypeOrmSqlSessionAdapter
 
     try {
       await dataSource.initialize();
-    } catch (error) {
-      this.logger.warn(
-        `Login rechazado por SQL Server para "${usuario}": ${(error as Error).message}`,
-      );
+    } catch {
+      this.logger.warn(`Login rechazado por SQL Server para "${usuario}".`);
       throw new CredencialesInvalidasError();
     }
 
