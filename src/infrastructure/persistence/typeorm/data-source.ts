@@ -1,16 +1,7 @@
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 
-import {
-  BodegaOrmEntity,
-  CategoriaOrmEntity,
-  EntradaInventarioOrmEntity,
-  InventarioActualOrmEntity,
-  OrdenCompraOrmEntity,
-  ProductoOrmEntity,
-  ProveedorOrmEntity,
-  SalidaInventarioOrmEntity,
-} from '../../../inventory/infrastructure/persistence/typeorm/entities';
+import { ORM_ENTITIES } from '../../../modules/shared/infrastructure/sql-session/orm-entities.registry';
 
 config();
 
@@ -29,16 +20,7 @@ export default new DataSource({
     encrypt: true,
     trustServerCertificate: true,
   },
-  entities: [
-    BodegaOrmEntity,
-    CategoriaOrmEntity,
-    ProveedorOrmEntity,
-    ProductoOrmEntity,
-    OrdenCompraOrmEntity,
-    EntradaInventarioOrmEntity,
-    SalidaInventarioOrmEntity,
-    InventarioActualOrmEntity,
-  ],
+  entities: ORM_ENTITIES,
   migrations: ['src/infrastructure/persistence/typeorm/migrations/*.ts'],
   synchronize: false,
 });

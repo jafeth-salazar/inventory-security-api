@@ -1,11 +1,11 @@
-import { BodegaOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/bodega.orm-entity';
-import { CategoriaOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/categoria.orm-entity';
-import { EntradaInventarioOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/entrada-inventario.orm-entity';
-import { InventarioActualOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/inventario-actual.orm-entity';
-import { OrdenCompraOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/orden-compra.orm-entity';
-import { ProductoOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/producto.orm-entity';
-import { ProveedorOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/proveedor.orm-entity';
-import { SalidaInventarioOrmEntity } from '../../../inventory/infrastructure/persistence/typeorm/entities/salida-inventario.orm-entity';
+import { BodegaOrmEntity } from '../../../modules/inventory/catalogo/infrastructure/persistence/typeorm/entities/bodega.orm-entity';
+import { CategoriaOrmEntity } from '../../../modules/inventory/catalogo/infrastructure/persistence/typeorm/entities/categoria.orm-entity';
+import { ProductoOrmEntity } from '../../../modules/inventory/catalogo/infrastructure/persistence/typeorm/entities/producto.orm-entity';
+import { ProveedorOrmEntity } from '../../../modules/inventory/catalogo/infrastructure/persistence/typeorm/entities/proveedor.orm-entity';
+import { EntradaInventarioOrmEntity } from '../../../modules/inventory/movimientos/infrastructure/persistence/typeorm/entities/entrada-inventario.orm-entity';
+import { InventarioActualOrmEntity } from '../../../modules/inventory/movimientos/infrastructure/persistence/typeorm/entities/inventario-actual.orm-entity';
+import { OrdenCompraOrmEntity } from '../../../modules/inventory/movimientos/infrastructure/persistence/typeorm/entities/orden-compra.orm-entity';
+import { SalidaInventarioOrmEntity } from '../../../modules/inventory/movimientos/infrastructure/persistence/typeorm/entities/salida-inventario.orm-entity';
 
 import dataSource from './data-source';
 
