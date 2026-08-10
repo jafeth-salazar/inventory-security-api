@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { EntityManager } from 'typeorm';
 
 import { InventarioActualOrmEntity } from './entities/inventario-actual.orm-entity';
@@ -25,11 +27,14 @@ export async function upsertInventarioActual(
     return;
   }
 
-  await repositorioInventario.save(
-    repositorioInventario.create({
-      productoId,
-      bodegaId,
-      cantidadActual: nuevaCantidadActual,
-    }),
-  );
+  // .insert() en vez de .save(): evita la recarga por SELECT que TypeORM
+  // hace tras guardar entidades con relaciones (@ManyToOne a Producto/Bodega
+  // acá) — esa recarga necesita permiso SELECT en la tabla, que Operador no
+  // tiene.
+  await repositorioInventario.insert({
+    id: randomUUID(),
+    productoId,
+    bodegaId,
+    cantidadActual: nuevaCantidadActual,
+  });
 }

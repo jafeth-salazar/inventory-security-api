@@ -13,12 +13,8 @@ import { ProductoOrmEntity } from '../../../../../catalogo/infrastructure/persis
 @Entity({ name: 'InventarioActual' })
 @Unique('UQ_InventarioActual_producto_bodega', ['productoId', 'bodegaId'])
 export class InventarioActualOrmEntity {
-  // UUID v4 (NEWID()): ver nota en bodega.orm-entity.ts
-  @PrimaryColumn({
-    name: 'id',
-    type: 'uniqueidentifier',
-    default: () => 'NEWID()',
-  })
+  // UUID v4 generado por la app: ver nota en bodega.orm-entity.ts
+  @PrimaryColumn({ type: 'uniqueidentifier' })
   id: string;
 
   @Column({ name: 'producto_id', type: 'uniqueidentifier' })

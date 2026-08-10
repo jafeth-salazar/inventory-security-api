@@ -6,12 +6,8 @@ import { ProveedorOrmEntity } from './proveedor.orm-entity';
 // precio_unitario es candidato a enmascaramiento (Parte 2.3, aún pendiente)
 @Entity({ name: 'Productos' })
 export class ProductoOrmEntity {
-  // UUID v4 (NEWID()): ver nota en bodega.orm-entity.ts
-  @PrimaryColumn({
-    name: 'id',
-    type: 'uniqueidentifier',
-    default: () => 'NEWID()',
-  })
+  // UUID v4 generado por la app: ver nota en bodega.orm-entity.ts
+  @PrimaryColumn({ type: 'uniqueidentifier' })
   id: string;
 
   @Column({ name: 'nombre', type: 'nvarchar', length: 150 })

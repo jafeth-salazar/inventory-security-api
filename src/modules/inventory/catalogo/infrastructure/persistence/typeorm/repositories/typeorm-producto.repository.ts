@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Scope } from '@nestjs/common';
 
 import { EntidadNoEncontradaError } from '../../../../../../shared/domain/errors/entidad-no-encontrada.error';
@@ -15,9 +17,14 @@ export class TypeOrmProductoRepository implements ProductoRepositoryPort {
   constructor(private readonly currentSqlSession: CurrentSqlSession) {}
 
   async crear(datos: DatosCrearProducto): Promise<Producto> {
-    const repositorio = this.repositorioOrm();
-    const creado = await repositorio.save(repositorio.create(datos));
-    return this.toDomain(creado);
+    const id = randomUUID();
+    // .insert() en vez de .save(): evita la recarga por SELECT que TypeORM
+    // hace tras guardar entidades con relaciones (@ManyToOne a Categoria/
+    // Proveedor acá) — esa recarga necesita permiso SELECT en la tabla, que
+    // Operador no tiene. No hace falta releer nada porque ya tenemos todos
+    // los valores del lado de la app.
+    await this.repositorioOrm().insert({ ...datos, id });
+    return this.toDomain({ ...datos, id } as ProductoOrmEntity);
   }
 
   async listar(): Promise<Producto[]> {
