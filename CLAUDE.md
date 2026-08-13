@@ -386,6 +386,41 @@ DB_HOST=localhost npm run migration:run
 Esto es una instancia más de la limitación ya conocida (ver abajo): las
 migraciones no corren solas con `docker compose up`.
 
+## Enmascaramiento (Parte 2.3)
+
+Dynamic Data Masking, aplicado en la migración `AddDynamicDataMasking`
+(después de que las tablas existen; no puede ir en `sql/` por la misma razón
+que los triggers de auditoría). Solo se enmascaran los campos que el
+enunciado pide explícitamente — nombres de personas/empresas, teléfonos,
+correos y montos — y nada más:
+
+| Tabla.Columna | Función | Por qué esa función |
+|---|---|---|
+| `Proveedores.nombre` | `partial(1, "XXXXXXXXXX", 0)` | Nombre de empresa: se conserva la inicial para que siga siendo identificable en una lista, el resto se oculta. |
+| `Proveedores.telefono` | `partial(4, "-XXXX", 0)` | Formato `2222-9999`: se conserva el prefijo (4 dígitos), se oculta el resto. |
+| `Proveedores.correo` | `email()` | Función nativa pensada para este formato — inicial + dominio enmascarado (`cXXX@XXXX.com`). |
+| `Productos.precio_unitario` | `random(1, 1000)` | Monto: no tiene sentido conservar ningún fragmento (un precio parcial ya revela el real), y un valor aleatorio no correlaciona con el precio real. |
+| `OrdenesCompra.total` | `default()` | Monto más sensible (total de una compra) — ocultamiento completo, ni siquiera un rango aleatorio. |
+
+**Por qué NO se enmascararon otros campos**: `Bodegas.nombre`,
+`Categorias.nombre`, `Productos.nombre`/`descripcion` no son nombres de
+personas/empresas ni montos — son metadatos internos del catálogo. `cantidad`
+en movimientos es una cantidad de unidades, no un monto de dinero. Los ids
+(`uniqueidentifier`) no son datos enmascarables per Parte 2.3.
+
+Los `GRANT UNMASK` de Supervisor/Auditor ya estaban en
+`sql/01_logins_and_roles.sql` desde la Parte 2.1.
+
+**Por qué existe el login `inv_demo_masking`**: con los roles mínimos del
+enunciado, *nadie* ve realmente el valor enmascarado — Supervisor/Auditor/
+`inventory_app` (miembro de `db_auditor_rol`) tienen `UNMASK`, `inv_dba` es
+`db_owner` (bypassea el enmascaramiento), y Operador tiene `DENY SELECT` total
+(ni siquiera ve la fila enmascarada, el error es de permiso, no de máscara).
+`inv_demo_masking` (creado en `sql/01_logins_and_roles.sql`, sin `UNMASK`, con
+`GRANT SELECT` solo sobre `Proveedores`/`Productos`/`OrdenesCompra` desde la
+migración) existe únicamente para poder mostrar el `XXXX` en la presentación
+sin tocar los roles que sí se evalúan. No tiene `INSERT`/`UPDATE`/`DELETE`.
+
 ## Pendiente de definir (no bloquea el setup actual)
 
 - Estrategia de expiración/cierre de `DataSource` huérfanos en `SqlSessionPort`
