@@ -1,23 +1,12 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 
 import { BodegaOrmEntity } from '../../../../../catalogo/infrastructure/persistence/typeorm/entities/bodega.orm-entity';
 import { ProductoOrmEntity } from '../../../../../catalogo/infrastructure/persistence/typeorm/entities/producto.orm-entity';
 
 @Entity({ name: 'SalidasInventario' })
 export class SalidaInventarioOrmEntity {
-  // UUID v4 (NEWID()): ver nota en bodega.orm-entity.ts
-  @PrimaryColumn({
-    name: 'id',
-    type: 'uniqueidentifier',
-    default: () => 'NEWID()',
-  })
+  // UUID v4 generado por la app: ver nota en bodega.orm-entity.ts
+  @PrimaryColumn({ type: 'uniqueidentifier' })
   id: string;
 
   @Column({ name: 'producto_id', type: 'uniqueidentifier' })
@@ -40,6 +29,11 @@ export class SalidaInventarioOrmEntity {
   @Column({ name: 'motivo', type: 'nvarchar', length: 100, nullable: true })
   motivo: string | null;
 
-  @CreateDateColumn({ name: 'fecha', type: 'datetime2' })
+  // Columna plana (no @CreateDateColumn): la app manda `new Date()` explícito
+  // al crear — ver typeorm-salida-inventario.repository.ts. Si TypeORM
+  // tuviera que releer esta columna generada por la BD (getdate()) después
+  // del INSERT, necesitaría SELECT sobre esta tabla, permiso que Operador
+  // no tiene (solo escritura).
+  @Column({ name: 'fecha', type: 'datetime2' })
   fecha: Date;
 }

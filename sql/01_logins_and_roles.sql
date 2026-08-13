@@ -75,6 +75,15 @@ IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'inv_backup_ope
 -- Cuenta técnica del backend NestJS (perfil auditor, ver Parte 3.4 del enunciado)
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'inventory_app')
     CREATE LOGIN inventory_app WITH PASSWORD = 'ChangeMe_InventoryApp_2026!', CHECK_POLICY = ON;
+
+-- Login exclusivo para demostrar el enmascaramiento (Parte 2.3) en la
+-- presentación: SELECT sin UNMASK sobre las tablas con máscara (ver
+-- migración AddDynamicDataMasking). No es uno de los roles mínimos del
+-- enunciado — todos esos (Supervisor/Auditor/DBA/inventory_app) ya tienen
+-- UNMASK o no tienen SELECT en absoluto (Operador), así que ninguno vería
+-- realmente el valor enmascarado en una demo en vivo.
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'inv_demo_masking')
+    CREATE LOGIN inv_demo_masking WITH PASSWORD = 'ChangeMe_DemoMasking_2026!', CHECK_POLICY = ON;
 GO
 
 -- ----------------------------------------------------------
@@ -110,6 +119,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'inv_backup_o
     CREATE USER inv_backup_operator FOR LOGIN inv_backup_operator;
 IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'inventory_app')
     CREATE USER inventory_app FOR LOGIN inventory_app;
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'inv_demo_masking')
+    CREATE USER inv_demo_masking FOR LOGIN inv_demo_masking;
 GO
 
 -- ----------------------------------------------------------

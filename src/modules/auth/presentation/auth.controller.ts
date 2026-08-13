@@ -1,5 +1,14 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+} from '@nestjs/common';
+import type { Request } from 'express';
 
+import type { OrigenConexion } from '../../shared/domain/ports/sql-session.port';
 import { CurrentSqlSession } from '../../shared/infrastructure/sql-session/current-sql-session';
 import { Public } from '../../shared/infrastructure/sql-session/public.decorator';
 import { AutenticarUsuario } from '../application/autenticar-usuario.use-case';
@@ -19,8 +28,15 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: LoginRequestDto): Promise<LoginResponseDto> {
-    return this.autenticarUsuario.ejecutar(dto.usuario, dto.password);
+  async login(
+    @Body() dto: LoginRequestDto,
+    @Req() request: Request,
+  ): Promise<LoginResponseDto> {
+    const origen: OrigenConexion = {
+      ip: request.ip ?? null,
+      equipo: (request.headers['user-agent'] as string) ?? null,
+    };
+    return this.autenticarUsuario.ejecutar(dto.usuario, dto.password, origen);
   }
 
   @Post('logout')

@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Scope } from '@nestjs/common';
 
 import { CurrentSqlSession } from '../../../../../../shared/infrastructure/sql-session/current-sql-session';
@@ -41,12 +43,15 @@ export class TypeOrmSalidaInventarioRepository implements SalidaInventarioReposi
           );
         }
 
-        const repositorioSalidas = manager.getRepository(
-          SalidaInventarioOrmEntity,
-        );
-        const salida = await repositorioSalidas.save(
-          repositorioSalidas.create(datos),
-        );
+        const id = randomUUID();
+        const fecha = new Date();
+        // .insert() en vez de .save(): evita la recarga por SELECT que
+        // TypeORM hace tras guardar entidades con relaciones (@ManyToOne a
+        // Producto/Bodega acá) — esa recarga necesita permiso SELECT en la
+        // tabla, que Operador no tiene.
+        await manager
+          .getRepository(SalidaInventarioOrmEntity)
+          .insert({ ...datos, id, fecha });
 
         await upsertInventarioActual(
           manager,
@@ -56,7 +61,7 @@ export class TypeOrmSalidaInventarioRepository implements SalidaInventarioReposi
           existente,
         );
 
-        return salida;
+        return { ...datos, id, fecha } as SalidaInventarioOrmEntity;
       },
     );
 

@@ -315,13 +315,114 @@ Ver `.env.example`. `DB_USER`/`DB_PASSWORD` en `.env` son solo para el
 health-check/arranque de la app (`inventory_app`); las credenciales reales de
 cada usuario humano se capturan en el login de la aplicación, no en `.env`.
 
+## Auditoría (Parte 2.2)
+
+El schema `audit` (creado en `sql/01_logins_and_roles.sql` con
+`AUTHORIZATION dbo`, mismo owner que `dbo`) tiene una tabla espejo por cada
+tabla transaccional de `inventory`, creadas junto con sus triggers en la
+migración `CreateAuditSchemaAndTriggers` — no en `sql/`, porque `db-init`
+corre esos scripts antes de que las tablas transaccionales existan (esas se
+crean vía migración, ver arriba).
+
+Cada tabla transaccional tiene un trigger `dbo.TR_<Tabla>_Audit` (`AFTER
+INSERT, UPDATE, DELETE`, set-based con `inserted`/`deleted`, sin cursores)
+que inserta en `audit.<Tabla>` el estado resultante de la fila más
+`Movimiento`, `Usuario_Aud` (`ORIGINAL_LOGIN()`), `Fecha_aud`, y
+`EquipoOrigen`/`IPOrigen`.
+
+**EquipoOrigen/IPOrigen en una API de 3 capas**: SQL Server solo ve la
+conexión del contenedor `api`, no la IP/equipo real de quien hizo el request
+HTTP. Se resuelve con `SESSION_CONTEXT`: `AuthController.login` captura
+`request.ip`/`User-Agent` real y lo pasa hasta
+`TypeOrmSqlSessionAdapter.authenticate`, que corre `sp_set_session_context`
+justo después de `dataSource.initialize()`. El `DataSource` de cada sesión
+se fuerza a `pool: { min: 1, max: 1 }` (una sola conexión física) porque
+`SESSION_CONTEXT` vive en la conexión, no en el `DataSource` — con un pool de
+más de una conexión, una query podría caer en una conexión donde nunca se
+seteó el contexto.
+
+**Por qué un operador (sin ningún `GRANT` sobre `audit`) puede escribir en
+`audit.*` igual**: por *ownership chaining* — como `dbo` y `audit` comparten
+owner, el `INSERT INTO audit.*` de adentro del trigger no vuelve a chequear
+permisos del usuario que disparó el trigger.
+
+**Por qué los repositorios usan `.insert()` en vez de `.save()`, y generan
+`id`/`fecha` en la app en vez de dejar que la BD los genere**: en mssql,
+`repository.save()` en una entidad con relaciones (`@ManyToOne`) hace una
+recarga por `SELECT ... WHERE id = ...` después de guardar — y ese `SELECT`
+necesita permiso sobre la tabla. Un operador con `DENY SELECT` (solo
+escritura) nunca lo tiene, así que `POST /entradas-inventario` le fallaba con
+`500` aunque su `INSERT` estuviera perfectamente permitido. Además, dejar que
+SQL Server genere `id` (`NEWID()`) o `fecha` (`getdate()`) obliga a TypeORM a
+releerlos con `OUTPUT INSERTED.*`, que en una tabla con trigger exige el mismo
+permiso `SELECT` (aun usando `OUTPUT ... INTO @variable` para no chocar con
+"cannot have OUTPUT clause without INTO clause"). La solución: `id` se genera
+con `randomUUID()` y `fecha` con `new Date()` **en el repositorio**, antes de
+insertar, y se usa `repository.insert(...)` (sin recarga) en vez de
+`repository.save(repository.create(...))`. Los `@PrimaryColumn`/`@Column` de
+`id`/`fecha` ya no tienen `default:` — la app siempre manda el valor.
+
+**Operador necesita `SELECT` sobre `InventarioActual`, no solo `INSERT` sobre
+movimientos**: `RegistrarEntradaInventario`/`RegistrarSalidaInventario` leen
+el stock actual antes de escribir. La migración `GrantOperadorSelectInventarioActual`
+revoca el `DENY SELECT` a nivel de schema (`SCHEMA::dbo`) y lo reemplaza por 7
+`DENY` puntuales (todas las tablas salvo `InventarioActual`) + un `GRANT
+SELECT` solo sobre `InventarioActual` — porque en SQL Server un `DENY` de
+schema siempre gana sobre un `GRANT` de tabla, no se puede "perforar" un DENY
+amplio con un GRANT más específico.
+
+**Ojo — `db-init` pisa esta migración en cada `docker compose up`**:
+`sql/01_logins_and_roles.sql` vuelve a correr en cada `up` (es idempotente a
+propósito) y su `DENY SELECT, DELETE ON SCHEMA::dbo TO db_operador_rol`
+reinstala el DENY de schema completo, deshaciendo lo que
+`GrantOperadorSelectInventarioActual` había dejado. TypeORM no lo detecta
+(su tabla `migrations` sigue diciendo que ya corrió), así que después de
+**cualquier** `docker compose up`/`up --build` hay que volver a aplicar esa
+migración a mano:
+```bash
+DB_HOST=localhost npm run migration:revert   # solo si el operador vuelve a fallar
+DB_HOST=localhost npm run migration:run
+```
+Esto es una instancia más de la limitación ya conocida (ver abajo): las
+migraciones no corren solas con `docker compose up`.
+
+## Enmascaramiento (Parte 2.3)
+
+Dynamic Data Masking, aplicado en la migración `AddDynamicDataMasking`
+(después de que las tablas existen; no puede ir en `sql/` por la misma razón
+que los triggers de auditoría). Solo se enmascaran los campos que el
+enunciado pide explícitamente — nombres de personas/empresas, teléfonos,
+correos y montos — y nada más:
+
+| Tabla.Columna | Función | Por qué esa función |
+|---|---|---|
+| `Proveedores.nombre` | `partial(1, "XXXXXXXXXX", 0)` | Nombre de empresa: se conserva la inicial para que siga siendo identificable en una lista, el resto se oculta. |
+| `Proveedores.telefono` | `partial(4, "-XXXX", 0)` | Formato `2222-9999`: se conserva el prefijo (4 dígitos), se oculta el resto. |
+| `Proveedores.correo` | `email()` | Función nativa pensada para este formato — inicial + dominio enmascarado (`cXXX@XXXX.com`). |
+| `Productos.precio_unitario` | `random(1, 1000)` | Monto: no tiene sentido conservar ningún fragmento (un precio parcial ya revela el real), y un valor aleatorio no correlaciona con el precio real. |
+| `OrdenesCompra.total` | `default()` | Monto más sensible (total de una compra) — ocultamiento completo, ni siquiera un rango aleatorio. |
+
+**Por qué NO se enmascararon otros campos**: `Bodegas.nombre`,
+`Categorias.nombre`, `Productos.nombre`/`descripcion` no son nombres de
+personas/empresas ni montos — son metadatos internos del catálogo. `cantidad`
+en movimientos es una cantidad de unidades, no un monto de dinero. Los ids
+(`uniqueidentifier`) no son datos enmascarables per Parte 2.3.
+
+Los `GRANT UNMASK` de Supervisor/Auditor ya estaban en
+`sql/01_logins_and_roles.sql` desde la Parte 2.1.
+
+**Por qué existe el login `inv_demo_masking`**: con los roles mínimos del
+enunciado, *nadie* ve realmente el valor enmascarado — Supervisor/Auditor/
+`inventory_app` (miembro de `db_auditor_rol`) tienen `UNMASK`, `inv_dba` es
+`db_owner` (bypassea el enmascaramiento), y Operador tiene `DENY SELECT` total
+(ni siquiera ve la fila enmascarada, el error es de permiso, no de máscara).
+`inv_demo_masking` (creado en `sql/01_logins_and_roles.sql`, sin `UNMASK`, con
+`GRANT SELECT` solo sobre `Proveedores`/`Productos`/`OrdenesCompra` desde la
+migración) existe únicamente para poder mostrar el `XXXX` en la presentación
+sin tocar los roles que sí se evalúan. No tiene `INSERT`/`UPDATE`/`DELETE`.
+
 ## Pendiente de definir (no bloquea el setup actual)
 
-- Trigger DDL del schema `audit` (Parte 2.2) — capturar `EquipoOrigen`/`IPOrigen`
-  cuando la conexión pasa por Docker requiere decidir si se usa
-  `CONNECTIONPROPERTY('client_net_address')` o `SESSION_CONTEXT` seteado por
-  la API al abrir cada `DataSource`.
-- Modelo físico completo (Parte 1) — tablas de `inventory` aún no creadas.
 - Estrategia de expiración/cierre de `DataSource` huérfanos en `SqlSessionPort`
   (timeout de sesión, límite de conexiones concurrentes por login).
 - Branch protection en `main`/`develop`: el repo es privado bajo cuenta

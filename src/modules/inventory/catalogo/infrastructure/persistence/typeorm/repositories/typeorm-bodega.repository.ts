@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import { Injectable, Scope } from '@nestjs/common';
 
 import { EntidadNoEncontradaError } from '../../../../../../shared/domain/errors/entidad-no-encontrada.error';
@@ -15,9 +17,13 @@ export class TypeOrmBodegaRepository implements BodegaRepositoryPort {
   constructor(private readonly currentSqlSession: CurrentSqlSession) {}
 
   async crear(datos: DatosCrearBodega): Promise<Bodega> {
-    const repositorio = this.repositorioOrm();
-    const creada = await repositorio.save(repositorio.create(datos));
-    return this.toDomain(creada);
+    const id = randomUUID();
+    // .insert() en vez de .save(): no dispara la recarga por SELECT que
+    // TypeORM hace tras guardar entidades con relaciones — acá no aplica
+    // (Bodega no tiene @ManyToOne), pero se mantiene el mismo patrón que el
+    // resto de repos para que todos se comporten igual sin ese SELECT extra.
+    await this.repositorioOrm().insert({ ...datos, id });
+    return this.toDomain({ ...datos, id });
   }
 
   async listar(): Promise<Bodega[]> {
