@@ -73,6 +73,10 @@ export class CreateAuditSchemaAndTriggers1786216252527 implements MigrationInter
     `);
 
     for (const tabla of this.tablas) {
+      // IdAuditoria/Movimiento/Usuario_Aud/Fecha_aud/EquipoOrigen/IPOrigen son
+      // las columnas comunes a las 8 tablas — TypeOrmAuditoriaRepository las
+      // separa vía COLUMNAS_AUDITORIA. Si se agrega/renombra una acá, hay que
+      // actualizar ese set también.
       await queryRunner.query(`
         CREATE TABLE audit.${tabla.nombre} (
           IdAuditoria BIGINT IDENTITY(1,1) PRIMARY KEY,

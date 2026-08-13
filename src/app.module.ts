@@ -12,13 +12,14 @@ import { SharedModule } from './modules/shared/infrastructure/shared.module';
 
 @Module({
   imports: [
-    // Visor de auditoría estático (Parte 3 del enunciado) — vive fuera de
-    // src/ (carpeta web/, igual que sql/ o bruno/), es un cliente HTTP más
-    // de la API, no un módulo de la arquitectura hexagonal. Se sirve desde
-    // el mismo proceso para que no haga falta CORS entre dos orígenes.
+    // Páginas web estáticas (visor de auditoría de la Parte 3, y un CRUD de
+    // inventario) — viven fuera de src/ (carpeta web/, igual que sql/ o
+    // bruno/), son clientes HTTP más de la API, no módulos de la
+    // arquitectura hexagonal. Se sirven desde el mismo proceso para que no
+    // haga falta CORS entre dos orígenes.
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'web'),
-      serveRoot: '/auditoria',
+      serveRoot: '/app',
     }),
     SharedModule,
     AuthModule,

@@ -441,16 +441,21 @@ enunciado ya pide que la conexión se haga con un perfil auditor real
 alguien sin `GRANT SELECT ON SCHEMA::audit` (Operador, Supervisor) llama estos
 endpoints, SQL Server rechaza la query igual que con cualquier otra tabla.
 
-**`web/index.html`**: el "menú + filtros + tabla de resultados" que pide la
-Parte 3 es una página estática sola (sin build, sin framework), servida por
-el mismo proceso de Nest vía `@nestjs/serve-static` bajo `/auditoria`
-(`ServeStaticModule.forRoot({ rootPath: '.../web', serveRoot: '/auditoria' })`
-en `app.module.ts`) — se eligió ese prefijo, y no `/`, para no pisar la ruta
-raíz de `AppController`. Vive fuera de `src/` (igual que `bruno/` o `sql/`)
-porque no es parte de la arquitectura hexagonal del backend: le pega a la API
-por `fetch()` como cualquier otro cliente HTTP, nunca importa código de
-`src/modules/`. El `Dockerfile` copia `web/` a la imagen de runtime junto con
-`dist/`.
+**`web/`**: el "menú + filtros + tabla de resultados" que pide la Parte 3 son
+páginas estáticas solas (sin build, sin framework), servidas por el mismo
+proceso de Nest vía `@nestjs/serve-static` bajo `/app`
+(`ServeStaticModule.forRoot({ rootPath: '.../web', serveRoot: '/app' })` en
+`app.module.ts`) — se eligió ese prefijo, y no `/`, para no pisar la ruta raíz
+de `AppController`. `web/index.html` es una landing con links a
+`web/auditoria.html` (el visor de la Parte 3) y `web/inventario.html` (CRUD de
+catálogo + movimientos, no pedido por el enunciado pero usa la misma API).
+`web/sesion.js` centraliza login/logout/fetch autenticado (token en
+`sessionStorage`, no `localStorage` — se pierde al cerrar la pestaña, acorde
+al JWT de vida corta) para que ambas páginas no dupliquen esa lógica. Todo
+vive fuera de `src/` (igual que `bruno/` o `sql/`) porque no es parte de la
+arquitectura hexagonal del backend: le pega a la API por `fetch()` como
+cualquier otro cliente HTTP, nunca importa código de `src/modules/`. El
+`Dockerfile` copia `web/` a la imagen de runtime junto con `dist/`.
 
 ## Pendiente de definir (no bloquea el setup actual)
 

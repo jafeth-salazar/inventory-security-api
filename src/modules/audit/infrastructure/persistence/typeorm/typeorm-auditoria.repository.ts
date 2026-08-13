@@ -8,6 +8,10 @@ import {
   FiltrosConsultaAuditoria,
 } from '../../../domain/ports/auditoria-repository.port';
 
+// Columnas comunes a las 8 tablas audit.* (ver migración
+// CreateAuditSchemaAndTriggers) — todo lo que no esté acá se trata como dato
+// propio de la tabla espejo y va dentro de RegistroAuditoria.datos. Si esa
+// migración agrega/renombra una columna común, actualizar este set también.
 const COLUMNAS_AUDITORIA = new Set([
   'idauditoria',
   'movimiento',

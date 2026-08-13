@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gestión de Inventario — Inventory Security</title>
+<link rel="stylesheet" href="estilos.css" />
+<style>
+  /* Específico de esta página — el resto vive en estilos.css */
+  #panel-app { display: none; }
+  nav.secciones { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  nav.secciones button { background: white; color: var(--brand); border: 1px solid var(--border); }
+  nav.secciones button.activa { background: var(--brand); color: white; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Gestión de Inventario</h1>
+  <p>Catálogo y movimientos — cada operación corre con la conexión SQL real del usuario logueado.
+    &middot; <a href="/app/">Inicio</a>
+    &middot; <a href="/app/auditoria.html">Visor de auditoría</a>
+  </p>
+</header>
+
+<main>
+  <section class="panel" id="panel-login">
+    <h2>Iniciar sesión</h2>
+    <div class="campo">
+      <label for="usuario">Usuario (login de SQL Server)</label>
+      <input id="usuario" placeholder="Jafeth" autocomplete="username" />
+    </div>
+    <div class="campo">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" />
+    </div>
+    <button id="btn-login">Ingresar</button>
+    <div id="mensaje-error"></div>
+  </section>
+
+  <section class="panel" id="panel-sesion" style="display:none">
+    <span>Conectado como <strong id="usuario-actual"></strong></span>
+    <button class="secundario" id="btn-logout">Cerrar sesión</button>
+  </section>
+
+  <div id="panel-app">
+    <nav class="secciones" id="nav-secciones"></nav>
+    <div id="contenedor-seccion"></div>
+  </div>
+</main>
+
+<script src="sesion.js"></script>
+<script>
+  const $ = (id) => document.getElementById(id);
+
+  // ---- Definición de cada sección: endpoint + campos del formulario ----
+  const CATALOGO = {
+    bodegas: {
+      titulo: 'Bodegas',
+      endpoint: '/bodegas',
+      editable: true,
+      campos: [
+        { nombre: 'nombre', etiqueta: 'Nombre', requerido: true },
+        { nombre: 'ubicacion', etiqueta: 'Ubicación' },
+      ],
+    },
+    categorias: {
+      titulo: 'Categorías',
+      endpoint: '/categorias',
+      editable: true,
+      campos: [{ nombre: 'nombre', etiqueta: 'Nombre', requerido: true }],
+    },
+    proveedores: {
+      titulo: 'Proveedores',
+      endpoint: '/proveedores',
+      editable: true,
+      campos: [
+        { nombre: 'nombre', etiqueta: 'Nombre', requerido: true },
+        { nombre: 'telefono', etiqueta: 'Teléfono' },
+        { nombre: 'correo', etiqueta: 'Correo', tipo: 'email' },
+        { nombre: 'direccion', etiqueta: 'Dirección' },
+      ],
+    },
+    productos: {
+      titulo: 'Productos',
+      endpoint: '/productos',
+      editable: true,
+      campos: [
+        { nombre: 'nombre', etiqueta: 'Nombre', requerido: true },
+        { nombre: 'descripcion', etiqueta: 'Descripción' },
+        { nombre: 'precioUnitario', etiqueta: 'Precio unitario', requerido: true, tipo: 'number', paso: '0.01' },
+        { nombre: 'categoriaId', etiqueta: 'Categoría', requerido: true, tipo: 'select', fuente: 'categorias' },
+        { nombre: 'proveedorId', etiqueta: 'Proveedor', tipo: 'select', fuente: 'proveedores' },
+      ],
+    },
+  };
+
+  const MOVIMIENTOS = {
+    'ordenes-compra': {
+      titulo: 'Órdenes de compra',
+      endpoint: '/ordenes-compra',
+      editable: false,
+      campos: [
+        { nombre: 'proveedorId', etiqueta: 'Proveedor', requerido: true, tipo: 'select', fuente: 'proveedores' },
+        { nombre: 'total', etiqueta: 'Total', requerido: true, tipo: 'number', paso: '0.01' },
+      ],
+    },
+    'entradas-inventario': {
+      titulo: 'Entradas de inventario',
+      endpoint: '/entradas-inventario',
+      editable: false,
+      campos: [
+        { nombre: 'productoId', etiqueta: 'Producto', requerido: true, tipo: 'select', fuente: 'productos' },
+        { nombre: 'bodegaId', etiqueta: 'Bodega', requerido: true, tipo: 'select', fuente: 'bodegas' },
+        { nombre: 'ordenCompraId', etiqueta: 'Orden de compra', tipo: 'select', fuente: 'ordenes-compra' },
+        { nombre: 'cantidad', etiqueta: 'Cantidad', requerido: true, tipo: 'number', paso: '1', entero: true },
+      ],
+    },
+    'salidas-inventario': {
+      titulo: 'Salidas de inventario',
+      endpoint: '/salidas-inventario',
+      editable: false,
+      campos: [
+        { nombre: 'productoId', etiqueta: 'Producto', requerido: true, tipo: 'select', fuente: 'productos' },
+        { nombre: 'bodegaId', etiqueta: 'Bodega', requerido: true, tipo: 'select', fuente: 'bodegas' },
+        { nombre: 'cantidad', etiqueta: 'Cantidad', requerido: true, tipo: 'number', paso: '1', entero: true },
+        { nombre: 'motivo', etiqueta: 'Motivo' },
+      ],
+    },
+    'inventario-actual': {
+      titulo: 'Inventario actual',
+      endpoint: '/inventario-actual',
+      editable: false,
+      soloLectura: true,
+      campos: [],
+    },
+  };
+
+  const SECCIONES = { ...CATALOGO, ...MOVIMIENTOS };
+
+  // Cache de listas para poblar los <select> — se deriva de las fuentes que
+  // los propios campos declaran, así que agregar un nuevo campo `select` no
+  // requiere tocar este objeto a mano.
+  const cache = {};
+  for (const config of Object.values(SECCIONES)) {
+    for (const campo of config.campos) {
+      if (campo.tipo === 'select') cache[campo.fuente] = [];
+    }
+  }
+
+  let seccionActual = 'bodegas';
+  let idEnEdicion = null;
+
+  async function recargarCache() {
+    const claves = Object.keys(cache);
+    const resultados = await Promise.all(
+      claves.map(async (clave) => {
+        const respuesta = await Sesion.fetchAutenticado(SECCIONES[clave].endpoint);
+        return respuesta.ok ? await respuesta.json() : [];
+      }),
+    );
+    claves.forEach((clave, indice) => {
+      cache[clave] = resultados[indice];
+    });
+  }
+
+  function construirNav() {
+    const nav = $('nav-secciones');
+    nav.innerHTML = '';
+    for (const [clave, config] of Object.entries(SECCIONES)) {
+      const boton = document.createElement('button');
+      boton.textContent = config.titulo;
+      boton.dataset.seccion = clave;
+      boton.addEventListener('click', () => mostrarSeccion(clave));
+      nav.appendChild(boton);
+    }
+  }
+
+  function marcarNavActiva(clave) {
+    document.querySelectorAll('#nav-secciones button').forEach((boton) => {
+      boton.classList.toggle('activa', boton.dataset.seccion === clave);
+    });
+  }
+
+  function opcionesDe(fuente) {
+    return (cache[fuente] ?? []).map((fila) => ({ id: fila.id, etiqueta: fila.nombre ?? fila.id }));
+  }
+
+  // Secciones de movimientos/inventario-actual no viven en `cache` (esa solo
+  // guarda las fuentes para poblar <select>), así que traen su propia lista.
+  let filasSeccionActual = [];
+
+  async function cargarFilasDe(clave) {
+    if (cache[clave] !== undefined) {
+      return cache[clave];
+    }
+    try {
+      const respuesta = await Sesion.fetchAutenticado(SECCIONES[clave].endpoint);
+      return respuesta.ok ? await respuesta.json() : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // No recarga `cache` en cada cambio de sección — eso solo hace falta una
+  // vez al entrar y después de cada mutación (create/update/delete), no en
+  // cada click de la navegación.
+  async function mostrarSeccion(clave) {
+    seccionActual = clave;
+    idEnEdicion = null;
+    marcarNavActiva(clave);
+    filasSeccionActual = await cargarFilasDe(clave);
+    renderizarSeccion();
+  }
+
+  function renderizarSeccion() {
+    const config = SECCIONES[seccionActual];
+    const contenedor = $('contenedor-seccion');
+    contenedor.innerHTML = '';
+
+    if (!config.soloLectura) {
+      contenedor.appendChild(construirFormulario(config));
+    }
+    contenedor.appendChild(construirTabla(config));
+  }
+
+  function construirFormulario(config) {
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+    const titulo = document.createElement('h2');
+    titulo.textContent = idEnEdicion ? `Editar ${config.titulo}` : `Nuevo — ${config.titulo}`;
+    panel.appendChild(titulo);
+
+    const form = document.createElement('form');
+    form.className = 'fila';
+
+    const registro = idEnEdicion
+      ? cache[seccionActual]?.find((f) => f.id === idEnEdicion) ?? {}
+      : {};
+
+    for (const campo of config.campos) {
+      const contenedorCampo = document.createElement('div');
+      contenedorCampo.className = 'campo';
+      const label = document.createElement('label');
+      label.textContent = campo.etiqueta + (campo.requerido ? ' *' : '');
+      contenedorCampo.appendChild(label);
+
+      let input;
+      if (campo.tipo === 'select') {
+        input = document.createElement('select');
+        // Siempre hay una opción vacía primero — si no, el navegador
+        // preselecciona la primera opción real y un campo "requerido" que
+        // el usuario nunca tocó se guardaría con ese valor por accidente.
+        const vacia = document.createElement('option');
+        vacia.value = '';
+        vacia.textContent = campo.requerido ? 'Seleccioná una opción…' : '—';
+        input.appendChild(vacia);
+        for (const opcion of opcionesDe(campo.fuente)) {
+          const el = document.createElement('option');
+          el.value = opcion.id;
+          el.textContent = opcion.etiqueta;
+          input.appendChild(el);
+        }
+      } else {
+        input = document.createElement('input');
+        input.type = campo.tipo === 'number' ? 'number' : campo.tipo === 'email' ? 'email' : 'text';
+        if (campo.paso) input.step = campo.paso;
+      }
+      input.name = campo.nombre;
+      if (registro[campo.nombre] !== undefined && registro[campo.nombre] !== null) {
+        input.value = registro[campo.nombre];
+      }
+      contenedorCampo.appendChild(input);
+      form.appendChild(contenedorCampo);
+    }
+
+    const botonEnviar = document.createElement('button');
+    botonEnviar.type = 'submit';
+    botonEnviar.textContent = idEnEdicion ? 'Guardar cambios' : 'Crear';
+    const wrapperBoton = document.createElement('div');
+    wrapperBoton.className = 'campo';
+    wrapperBoton.style.flex = '0';
+    wrapperBoton.appendChild(botonEnviar);
+    form.appendChild(wrapperBoton);
+
+    if (idEnEdicion) {
+      const botonCancelar = document.createElement('button');
+      botonCancelar.type = 'button';
+      botonCancelar.className = 'secundario';
+      botonCancelar.textContent = 'Cancelar';
+      botonCancelar.addEventListener('click', () => {
+        idEnEdicion = null;
+        renderizarSeccion();
+      });
+      const wrapperCancelar = document.createElement('div');
+      wrapperCancelar.className = 'campo';
+      wrapperCancelar.style.flex = '0';
+      wrapperCancelar.appendChild(botonCancelar);
+      form.appendChild(wrapperCancelar);
+    }
+
+    const mensaje = document.createElement('div');
+    mensaje.className = 'mensaje-seccion';
+    panel.appendChild(form);
+    panel.appendChild(mensaje);
+
+    form.addEventListener('submit', async (evento) => {
+      evento.preventDefault();
+      mensaje.textContent = '';
+      mensaje.className = 'mensaje-seccion';
+
+      const datos = {};
+      for (const campo of config.campos) {
+        const valor = form.elements[campo.nombre].value;
+        if (valor === '') {
+          if (campo.requerido) {
+            mensaje.textContent = `"${campo.etiqueta}" es obligatorio.`;
+            mensaje.classList.add('error');
+            return;
+          }
+          datos[campo.nombre] = null;
+        } else {
+          datos[campo.nombre] = campo.entero ? parseInt(valor, 10) : valor;
+        }
+      }
+
+      try {
+        const url = idEnEdicion ? `${config.endpoint}/${idEnEdicion}` : config.endpoint;
+        const respuesta = await Sesion.fetchAutenticado(url, {
+          method: idEnEdicion ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(datos),
+        });
+        if (!respuesta.ok) {
+          const cuerpo = await respuesta.json().catch(() => ({}));
+          throw new Error(cuerpo.message || `Falló (HTTP ${respuesta.status})`);
+        }
+        mensaje.textContent = idEnEdicion ? 'Actualizado correctamente.' : 'Creado correctamente.';
+        mensaje.classList.add('ok');
+        idEnEdicion = null;
+        await recargarCache();
+        filasSeccionActual = await cargarFilasDe(seccionActual);
+        renderizarSeccion();
+      } catch (error) {
+        mensaje.textContent = error.message;
+        mensaje.classList.add('error');
+      }
+    });
+
+    return panel;
+  }
+
+  function nombreDe(fuente, id) {
+    if (!id) return '';
+    const fila = (cache[fuente] ?? []).find((f) => f.id === id);
+    return fila ? fila.nombre ?? id : id;
+  }
+
+  function construirTabla(config) {
+    const panel = document.createElement('section');
+    panel.className = 'panel';
+
+    const scroll = document.createElement('div');
+    scroll.className = 'tabla-scroll';
+    const tabla = document.createElement('table');
+    const thead = document.createElement('thead');
+    const filaEncabezado = document.createElement('tr');
+
+    const columnas = config.campos.length
+      ? config.campos.map((c) => c.etiqueta)
+      : ['Producto', 'Bodega', 'Cantidad actual'];
+    for (const columna of columnas) {
+      const th = document.createElement('th');
+      th.textContent = columna;
+      filaEncabezado.appendChild(th);
+    }
+    if (config.editable) {
+      const th = document.createElement('th');
+      th.textContent = 'Acciones';
+      filaEncabezado.appendChild(th);
+    }
+    thead.appendChild(filaEncabezado);
+    tabla.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    for (const fila of filasSeccionActual) {
+      const tr = document.createElement('tr');
+      if (config.campos.length) {
+        for (const campo of config.campos) {
+          const td = document.createElement('td');
+          if (campo.tipo === 'select') {
+            td.textContent = nombreDe(campo.fuente, fila[campo.nombre]);
+          } else {
+            td.textContent = fila[campo.nombre] ?? '';
+          }
+          tr.appendChild(td);
+        }
+      } else {
+        const tdProd = document.createElement('td');
+        tdProd.textContent = nombreDe('productos', fila.productoId);
+        const tdBod = document.createElement('td');
+        tdBod.textContent = nombreDe('bodegas', fila.bodegaId);
+        const tdCant = document.createElement('td');
+        tdCant.textContent = fila.cantidadActual;
+        tr.appendChild(tdProd);
+        tr.appendChild(tdBod);
+        tr.appendChild(tdCant);
+      }
+
+      if (config.editable) {
+        const td = document.createElement('td');
+        const botonEditar = document.createElement('button');
+        botonEditar.className = 'chica secundario';
+        botonEditar.textContent = 'Editar';
+        botonEditar.addEventListener('click', () => {
+          idEnEdicion = fila.id;
+          renderizarSeccion();
+        });
+        const botonEliminar = document.createElement('button');
+        botonEliminar.className = 'chica peligro';
+        botonEliminar.textContent = 'Eliminar';
+        botonEliminar.addEventListener('click', () => eliminar(config, fila.id));
+        td.appendChild(botonEditar);
+        td.appendChild(botonEliminar);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    tabla.appendChild(tbody);
+    scroll.appendChild(tabla);
+    panel.appendChild(scroll);
+    return panel;
+  }
+
+  async function eliminar(config, id) {
+    if (!confirm(`¿Eliminar este registro de ${config.titulo}?`)) return;
+    try {
+      const respuesta = await Sesion.fetchAutenticado(`${config.endpoint}/${id}`, { method: 'DELETE' });
+      if (!respuesta.ok && respuesta.status !== 204) {
+        const cuerpo = await respuesta.json().catch(() => ({}));
+        throw new Error(cuerpo.message || `No se pudo eliminar (HTTP ${respuesta.status})`);
+      }
+      await recargarCache();
+      filasSeccionActual = await cargarFilasDe(seccionActual);
+      renderizarSeccion();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  Sesion.inicializarPanelLogin({
+    async alEntrar() {
+      $('panel-app').style.display = 'block';
+      await recargarCache();
+      construirNav();
+      await mostrarSeccion('bodegas');
+    },
+    alSalir() {
+      $('panel-app').style.display = 'none';
+    },
+  });
+</script>
+</body>
+</html>

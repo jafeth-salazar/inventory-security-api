@@ -41,8 +41,20 @@ export class AuditController {
     return this.listarBitacoraAuditoria.ejecutar(tabla, {
       accion: filtros.accion,
       desde: filtros.desde ? new Date(filtros.desde) : undefined,
-      hasta: filtros.hasta ? new Date(filtros.hasta) : undefined,
+      hasta: filtros.hasta ? this.finalDelRango(filtros.hasta) : undefined,
       usuario: filtros.usuario,
     });
+  }
+
+  // Un "hasta" de solo fecha (sin hora, como manda <input type="date">) cae
+  // en medianoche UTC — filtrar con <= contra eso excluye casi todo ese día.
+  // Si viene con hora explícita (ISO completo), se respeta tal cual.
+  private finalDelRango(hasta: string): Date {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(hasta)) {
+      const fin = new Date(hasta);
+      fin.setUTCHours(23, 59, 59, 999);
+      return fin;
+    }
+    return new Date(hasta);
   }
 }
