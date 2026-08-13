@@ -1,0 +1,66 @@
+/* Compartido entre auditoria.html e inventario.html — evita duplicar el
+   mismo bloque de estilos en cada página. */
+:root {
+  color-scheme: light;
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --border: #d9dce1;
+  --text: #1f2430;
+  --muted: #6b7280;
+  --brand: #2f5d8a;
+  --brand-hover: #244a6e;
+  --error: #b3261e;
+  --danger: #b3261e;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header { background: var(--brand); color: white; padding: 16px 24px; }
+header h1 { margin: 0; font-size: 1.25rem; }
+header p { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.85; }
+header a { color: white; }
+main { max-width: 1100px; margin: 24px auto; padding: 0 16px 48px; }
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.campo { margin-bottom: 12px; }
+.fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.fila .campo { flex: 1; min-width: 160px; margin-bottom: 0; }
+label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+input, select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--brand);
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+button:hover { background: var(--brand-hover); }
+button.secundario { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+button.peligro { background: var(--danger); }
+button.chica { padding: 4px 10px; font-size: 0.8rem; margin-right: 6px; }
+#mensaje-error { color: var(--error); font-size: 0.85rem; margin-top: 8px; min-height: 1em; }
+#panel-sesion { display: flex; justify-content: space-between; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border-bottom: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+th { background: #eef1f5; }
+.tabla-scroll { overflow-x: auto; }
+.mensaje-seccion { font-size: 0.85rem; margin-top: 8px; min-height: 1em; }
+.mensaje-seccion.error { color: var(--error); }
+.mensaje-seccion.ok { color: #1e7d34; }

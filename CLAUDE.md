@@ -421,6 +421,42 @@ enunciado, *nadie* ve realmente el valor enmascarado — Supervisor/Auditor/
 migración) existe únicamente para poder mostrar el `XXXX` en la presentación
 sin tocar los roles que sí se evalúan. No tiene `INSERT`/`UPDATE`/`DELETE`.
 
+## Visor de auditoría (Parte 3)
+
+El módulo `audit/` (`ListarBitacoraAuditoria`) expone `GET /audit/tablas`
+(lista blanca `TABLAS_AUDITORIA`, para el menú) y `GET /audit/:tabla?accion=&
+desde=&hasta=&usuario=`. Es **un solo endpoint genérico**, no 8 endpoints
+hardcodeados — el nombre de tabla llega por path param, se valida contra
+`TABLAS_AUDITORIA` (400 si no matchea) antes de interpolarlo en el
+`SELECT * FROM audit.${tabla}`, y los filtros siempre van parametrizados
+(`@0, @1, ...`), nunca interpolados directo. Cada fila se separa en las 5
+columnas de auditoría comunes (`movimiento`, `usuarioAud`, `fechaAud`,
+`equipoOrigen`, `ipOrigen`) + un objeto `datos` con las columnas propias de
+la tabla origen (distintas por tabla) — así el frontend renderiza cualquier
+tabla sin necesitar 8 tipos distintos.
+
+No hace falta un rol nuevo para "solo lectura de auditoría": la Parte 3.4 del
+enunciado ya pide que la conexión se haga con un perfil auditor real
+(`inv_auditor1`/`2`), y el mecanismo de sesión SQL dinámica ya lo soporta — si
+alguien sin `GRANT SELECT ON SCHEMA::audit` (Operador, Supervisor) llama estos
+endpoints, SQL Server rechaza la query igual que con cualquier otra tabla.
+
+**`web/`**: el "menú + filtros + tabla de resultados" que pide la Parte 3 son
+páginas estáticas solas (sin build, sin framework), servidas por el mismo
+proceso de Nest vía `@nestjs/serve-static` bajo `/app`
+(`ServeStaticModule.forRoot({ rootPath: '.../web', serveRoot: '/app' })` en
+`app.module.ts`) — se eligió ese prefijo, y no `/`, para no pisar la ruta raíz
+de `AppController`. `web/index.html` es una landing con links a
+`web/auditoria.html` (el visor de la Parte 3) y `web/inventario.html` (CRUD de
+catálogo + movimientos, no pedido por el enunciado pero usa la misma API).
+`web/sesion.js` centraliza login/logout/fetch autenticado (token en
+`sessionStorage`, no `localStorage` — se pierde al cerrar la pestaña, acorde
+al JWT de vida corta) para que ambas páginas no dupliquen esa lógica. Todo
+vive fuera de `src/` (igual que `bruno/` o `sql/`) porque no es parte de la
+arquitectura hexagonal del backend: le pega a la API por `fetch()` como
+cualquier otro cliente HTTP, nunca importa código de `src/modules/`. El
+`Dockerfile` copia `web/` a la imagen de runtime junto con `dist/`.
+
 ## Pendiente de definir (no bloquea el setup actual)
 
 - Estrategia de expiración/cierre de `DataSource` huérfanos en `SqlSessionPort`
