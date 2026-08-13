@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Visor de Auditoría — Inventory Security</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #d9dce1;
+    --text: #1f2430;
+    --muted: #6b7280;
+    --brand: #2f5d8a;
+    --brand-hover: #244a6e;
+    --error: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--brand);
+    color: white;
+    padding: 16px 24px;
+  }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  header p { margin: 4px 0 0; font-size: 0.85rem; opacity: 0.85; }
+  main {
+    max-width: 1100px;
+    margin: 24px auto;
+    padding: 0 16px 48px;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .campo { margin-bottom: 12px; }
+  .fila { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .fila .campo { flex: 1; min-width: 160px; margin-bottom: 0; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+  button {
+    padding: 9px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--brand);
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+  button:hover { background: var(--brand-hover); }
+  button.secundario {
+    background: transparent;
+    color: var(--brand);
+    border: 1px solid var(--brand);
+  }
+  #mensaje-error {
+    color: var(--error);
+    font-size: 0.85rem;
+    margin-top: 8px;
+    min-height: 1em;
+  }
+  #panel-sesion { display: flex; justify-content: space-between; align-items: center; }
+  #panel-consulta, #panel-resultados { display: none; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th, td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  th { background: #eef1f5; position: sticky; top: 0; }
+  .tabla-scroll { overflow-x: auto; max-height: 60vh; overflow-y: auto; }
+  #contador { color: var(--muted); font-size: 0.85rem; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Visor de Auditoría</h1>
+  <p>Consulta de las tablas espejo del schema <code>audit</code> — conexión con perfil auditor de SQL Server.</p>
+</header>
+
+<main>
+  <section class="panel" id="panel-login">
+    <h2>Iniciar sesión</h2>
+    <div class="campo">
+      <label for="usuario">Usuario (login de SQL Server)</label>
+      <input id="usuario" placeholder="inv_auditor1" autocomplete="username" />
+    </div>
+    <div class="campo">
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" />
+    </div>
+    <button id="btn-login">Ingresar</button>
+    <div id="mensaje-error"></div>
+  </section>
+
+  <section class="panel" id="panel-sesion" style="display:none">
+    <span>Conectado como <strong id="usuario-actual"></strong></span>
+    <button class="secundario" id="btn-logout">Cerrar sesión</button>
+  </section>
+
+  <section class="panel" id="panel-consulta">
+    <h2>Consultar bitácora</h2>
+    <div class="fila">
+      <div class="campo">
+        <label for="tabla">Tabla</label>
+        <select id="tabla"></select>
+      </div>
+      <div class="campo">
+        <label for="accion">Tipo de acción</label>
+        <select id="accion">
+          <option value="">Todas</option>
+          <option value="Insercción">Insercción</option>
+          <option value="Actualizacion">Actualización</option>
+          <option value="Eliminación">Eliminación</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="desde">Desde</label>
+        <input id="desde" type="date" />
+      </div>
+      <div class="campo">
+        <label for="hasta">Hasta</label>
+        <input id="hasta" type="date" />
+      </div>
+      <div class="campo">
+        <label for="usuario-filtro">Usuario</label>
+        <input id="usuario-filtro" placeholder="inv_operador1" />
+      </div>
+      <div class="campo" style="flex: 0;">
+        <button id="btn-buscar">Buscar</button>
+      </div>
+    </div>
+    <div id="mensaje-error-consulta" style="color:#b3261e;font-size:0.85rem;margin-top:8px;"></div>
+  </section>
+
+  <section class="panel" id="panel-resultados">
+    <div id="contador"></div>
+    <div class="tabla-scroll">
+      <table id="tabla-resultados">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  let token = null;
+
+  const $ = (id) => document.getElementById(id);
+
+  async function login() {
+    $('mensaje-error').textContent = '';
+    const usuario = $('usuario').value.trim();
+    const password = $('password').value;
+    if (!usuario || !password) {
+      $('mensaje-error').textContent = 'Usuario y password son obligatorios.';
+      return;
+    }
+    try {
+      const respuesta = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, password }),
+      });
+      if (!respuesta.ok) {
+        throw new Error('Usuario o contraseña incorrectos.');
+      }
+      const cuerpo = await respuesta.json();
+      token = cuerpo.accessToken;
+      $('usuario-actual').textContent = usuario;
+      $('panel-login').style.display = 'none';
+      $('panel-sesion').style.display = 'flex';
+      $('panel-consulta').style.display = 'block';
+      await cargarTablas();
+    } catch (error) {
+      $('mensaje-error').textContent = error.message;
+    }
+  }
+
+  function logout() {
+    token = null;
+    $('password').value = '';
+    $('panel-login').style.display = 'block';
+    $('panel-sesion').style.display = 'none';
+    $('panel-consulta').style.display = 'none';
+    $('panel-resultados').style.display = 'none';
+  }
+
+  async function cargarTablas() {
+    const respuesta = await fetch('/audit/tablas', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const tablas = await respuesta.json();
+    const select = $('tabla');
+    select.innerHTML = '';
+    for (const tabla of tablas) {
+      const opcion = document.createElement('option');
+      opcion.value = tabla;
+      opcion.textContent = tabla;
+      select.appendChild(opcion);
+    }
+  }
+
+  async function buscar() {
+    $('mensaje-error-consulta').textContent = '';
+    const tabla = $('tabla').value;
+    const params = new URLSearchParams();
+    if ($('accion').value) params.set('accion', $('accion').value);
+    if ($('desde').value) params.set('desde', $('desde').value);
+    if ($('hasta').value) params.set('hasta', $('hasta').value);
+    if ($('usuario-filtro').value) params.set('usuario', $('usuario-filtro').value.trim());
+
+    try {
+      const respuesta = await fetch(`/audit/${tabla}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!respuesta.ok) {
+        const cuerpo = await respuesta.json().catch(() => ({}));
+        throw new Error(
+          cuerpo.message || `La consulta falló (HTTP ${respuesta.status}) — ¿tu login tiene permiso SELECT sobre el schema audit?`,
+        );
+      }
+      const filas = await respuesta.json();
+      renderizarResultados(filas);
+    } catch (error) {
+      $('mensaje-error-consulta').textContent = error.message;
+      $('panel-resultados').style.display = 'none';
+    }
+  }
+
+  function renderizarResultados(filas) {
+    const panel = $('panel-resultados');
+    const thead = document.querySelector('#tabla-resultados thead');
+    const tbody = document.querySelector('#tabla-resultados tbody');
+    $('contador').textContent = `${filas.length} registro(s)`;
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (filas.length === 0) {
+      panel.style.display = 'block';
+      return;
+    }
+
+    const columnasDatos = Object.keys(filas[0].datos ?? {});
+    const columnas = ['Fecha_aud', 'Movimiento', 'Usuario_Aud', 'EquipoOrigen', 'IPOrigen', ...columnasDatos];
+
+    const filaEncabezado = document.createElement('tr');
+    for (const columna of columnas) {
+      const th = document.createElement('th');
+      th.textContent = columna;
+      filaEncabezado.appendChild(th);
+    }
+    thead.appendChild(filaEncabezado);
+
+    for (const fila of filas) {
+      const tr = document.createElement('tr');
+      const valores = {
+        Fecha_aud: fila.fechaAud,
+        Movimiento: fila.movimiento,
+        Usuario_Aud: fila.usuarioAud,
+        EquipoOrigen: fila.equipoOrigen,
+        IPOrigen: fila.ipOrigen,
+        ...fila.datos,
+      };
+      for (const columna of columnas) {
+        const td = document.createElement('td');
+        td.textContent = valores[columna] ?? '';
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+
+    panel.style.display = 'block';
+  }
+
+  $('btn-login').addEventListener('click', login);
+  $('btn-logout').addEventListener('click', logout);
+  $('btn-buscar').addEventListener('click', buscar);
+</script>
+</body>
+</html>
