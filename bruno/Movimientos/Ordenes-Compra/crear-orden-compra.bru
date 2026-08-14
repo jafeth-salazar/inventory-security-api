@@ -1,0 +1,22 @@
+meta {
+  name: Crear orden de compra
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/ordenes-compra
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "proveedorId": "{{proveedorId}}",
+    "total": "150.00"
+  }
+}
+
+script:post-response {
+  bru.setVar("ordenCompraId", res.body.id);
+}

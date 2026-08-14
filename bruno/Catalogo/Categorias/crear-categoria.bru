@@ -1,0 +1,21 @@
+meta {
+  name: Crear categoria
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/categorias
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Electrónica"
+  }
+}
+
+script:post-response {
+  bru.setVar("categoriaId", res.body.id);
+}

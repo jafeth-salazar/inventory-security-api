@@ -1,0 +1,17 @@
+meta {
+  name: Actualizar proveedor
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/proveedores/{{proveedorId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "telefono": "2222-9999"
+  }
+}

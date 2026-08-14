@@ -1,0 +1,14 @@
+meta {
+  name: Eliminar proveedor
+  type: http
+  seq: 3
+  tags: [
+    cleanup
+  ]
+}
+
+delete {
+  url: {{baseUrl}}/proveedores/{{proveedorId}}
+  body: none
+  auth: inherit
+}

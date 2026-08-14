@@ -1,0 +1,11 @@
+meta {
+  name: Obtener salida de inventario por id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/salidas-inventario/{{salidaInventarioId}}
+  body: none
+  auth: inherit
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Crear entrada de inventario
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/entradas-inventario
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productoId": "{{productoId}}",
+    "bodegaId": "{{bodegaId}}",
+    "ordenCompraId": "{{ordenCompraId}}",
+    "cantidad": 50
+  }
+}
+
+script:post-response {
+  bru.setVar("entradaInventarioId", res.body.id);
+}

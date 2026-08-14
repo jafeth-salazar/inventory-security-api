@@ -23,6 +23,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/web ./web
 
 EXPOSE 3000
 CMD ["node", "dist/main"]

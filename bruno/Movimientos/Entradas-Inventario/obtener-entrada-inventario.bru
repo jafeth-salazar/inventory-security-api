@@ -1,0 +1,11 @@
+meta {
+  name: Obtener entrada de inventario por id
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/entradas-inventario/{{entradaInventarioId}}
+  body: none
+  auth: inherit
+}

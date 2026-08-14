@@ -1,0 +1,22 @@
+meta {
+  name: Crear bodega
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/bodegas
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "nombre": "Bodega Central",
+    "ubicacion": "San José"
+  }
+}
+
+script:post-response {
+  bru.setVar("bodegaId", res.body.id);
+}
